@@ -4,7 +4,7 @@ import "./globals.css";
 import TopNav from "@/components/TopNav";
 
 export const metadata: Metadata = {
-  title: "NOMAD – Smart Weekend Travel",
+  title: "NOMAD",
   description: "Plan weekend city trips with smart recommendations, assistance, and payments.",
 };
 
@@ -20,8 +20,11 @@ export default function RootLayout({
           <header className="bg-white border-b border-slate-100">
             <div className="section flex items-center justify-between py-5">
               <div>
-                <h1 className="text-xl font-bold text-brand-700">NOMAD</h1>
-                <p className="text-sm text-slate-500">Smart Weekend Travel & Assistance</p>
+                <img
+                  src="/nomads_d.png"
+                  alt="Nomad Logo"
+                  className="object-contain h-10"
+                />
               </div>
               <TopNav />
             </div>
