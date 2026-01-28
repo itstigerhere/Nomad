@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import PlaceCard from "./PlaceCard";
 
@@ -12,10 +12,12 @@ export default function PlacesList() {
 
   useEffect(() => {
     let cancelled = false;
+
     async function load() {
       setLoading(true);
+      setError(null);
+
       try {
-        // Determine user coords (geolocation -> localStorage -> fallback)
         let latitude: number | null = null;
         let longitude: number | null = null;
         let city: string | null = null;
@@ -24,80 +26,104 @@ export default function PlacesList() {
           const raw = localStorage.getItem("nomad_location");
           if (raw) {
             const loc = JSON.parse(raw);
-            if (loc.latitude) latitude = Number(loc.latitude);
-            if (loc.longitude) longitude = Number(loc.longitude);
-            if (loc.city) city = loc.city;
+            latitude = loc.latitude ? Number(loc.latitude) : null;
+            longitude = loc.longitude ? Number(loc.longitude) : null;
+            city = loc.city ?? null;
           }
 
-          if ((!latitude || !longitude) && typeof navigator !== "undefined" && navigator.geolocation) {
-            const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-              navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 7000 });
-            }).catch(() => null as any);
-            if (pos && pos.coords) {
+          if (
+            (!latitude || !longitude) &&
+            typeof navigator !== "undefined" &&
+            navigator.geolocation
+          ) {
+            const pos = await new Promise<GeolocationPosition>(
+              (resolve, reject) =>
+                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                  timeout: 7000,
+                })
+            ).catch(() => null as any);
+
+            if (pos?.coords) {
               latitude = pos.coords.latitude;
               longitude = pos.coords.longitude;
             }
           }
-        } catch (e) {
-          // ignore geolocation/localStorage errors
+        } catch {
+          /* ignore */
         }
 
-        // fallback coordinates (Bengaluru) if nothing available
         if (!latitude || !longitude) {
           latitude = 12.9716;
           longitude = 77.5946;
         }
 
-        // Try reverse-geocoding on the client (Mapbox) to get a consistent city for the coords.
-        async function reverseGeocode(lat: number, lon: number): Promise<string | null> {
+        const token =
+          process.env.NEXT_PUBLIC_MAPBOX_TOKEN ||
+          (window as any).__NEXT_PUBLIC_MAPBOX_TOKEN;
+
+        if (token && latitude && longitude) {
           try {
-            const token = (
-              process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN ||
-              process.env.NEXT_PUBLIC_MAPBOX_TOKEN ||
-              (window as any).__NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN ||
-              (window as any).__NEXT_PUBLIC_MAPBOX_TOKEN
-            ) as string | undefined;
-            if (!token) return null;
-            const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lon},${lat}.json?types=place&limit=1&access_token=${token}`;
-            const r = await fetch(url);
-            if (!r.ok) return null;
-            const j = await r.json();
-            return j.features?.[0]?.text ?? null;
-          } catch (err) {
-            return null;
+            const r = await fetch(
+              `https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json?types=place&limit=1&access_token=${token}`
+            );
+            if (r.ok) {
+              const j = await r.json();
+              city = j.features?.[0]?.text ?? city;
+            }
+          } catch {
+            /* ignore */
           }
         }
 
-        const resolvedCity = await reverseGeocode(latitude, longitude);
-        if (resolvedCity) city = resolvedCity;
-
-        // persist the chosen location for future requests
         try {
-          localStorage.setItem("nomad_location", JSON.stringify({ city, latitude, longitude }));
-        } catch (e) { /* ignore storage errors */ }
+          localStorage.setItem(
+            "nomad_location",
+            JSON.stringify({ city, latitude, longitude })
+          );
+        } catch {
+          /* ignore */
+        }
 
-        // Build params; omit city if we couldn't resolve it so backend can infer from seeded data
-        const params: any = { latitude, longitude, radiusKm: 50, limit: 50 };
+        const params: any = {
+          latitude,
+          longitude,
+          radiusKm: 50,
+          limit: 50,
+        };
         if (city) params.city = city;
 
         const res = await api.get("/api/places/nearby", { params });
+
         if (!cancelled) {
-          const count = (res.data || []).length;
-          setDebugInfo({ params, status: res.status, count });
           setPlaces(res.data || []);
+          setDebugInfo({
+            params,
+            status: res.status,
+            count: (res.data || []).length,
+          });
         }
       } catch (e: any) {
-        const msg = e?.response?.data || e?.message || "Failed to load places";
         if (!cancelled) {
+          const msg =
+            e?.response?.data ||
+            e?.message ||
+            "Failed to load places";
           setError(String(msg));
-          setDebugInfo({ params: (e as any)?.config?.params, status: (e as any)?.response?.status, error: msg });
+          setDebugInfo({
+            params: e?.config?.params,
+            status: e?.response?.status,
+            error: msg,
+          });
         }
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
+
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   function handleAdd(place: any) {
@@ -111,42 +137,74 @@ export default function PlacesList() {
       } else {
         alert(`${place.name} already in your tour`);
       }
-    } catch (err) {
-      console.error(err);
+    } catch {
       alert("Unable to add to tour");
     }
   }
 
-  if (loading) return <div>Loading nearby places…</div>;
-  if (error) return (
-    <div>
-      <div className="text-red-600">{error}</div>
-      <pre className="text-xs text-slate-500 mt-2">{JSON.stringify(debugInfo, null, 2)}</pre>
-      <div className="mt-2">
-        <button className="btn-outline" onClick={() => {
-          // populate demo places for UI testing
-          const demo = [{ id: 1, name: "Demo Beach", shortDescription: "Demo place", imageUrl: null, distanceKm: 1, rating: 4.5 }];
-          setPlaces(demo);
-          setError(null);
-        }}>Use demo places</button>
+  if (loading) {
+    return <p className="text-sm opacity-70">Loading nearby places…</p>;
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-2">
+        <p className="text-sm text-[rgb(220,38,38)]">{error}</p>
+        <pre className="text-xs opacity-60">
+          {JSON.stringify(debugInfo, null, 2)}
+        </pre>
+        <button
+          className="btn-outline"
+          onClick={() => {
+            setPlaces([
+              {
+                id: 1,
+                name: "Demo Beach",
+                shortDescription: "Demo place",
+                imageUrl: null,
+                distanceKm: 1,
+                rating: 4.5,
+              },
+            ]);
+            setError(null);
+          }}
+        >
+          Use demo places
+        </button>
       </div>
-    </div>
-  );
-  if (!places || places.length === 0) return (
-    <div>
-      <div>No nearby places found.</div>
-      <pre className="text-xs text-slate-500 mt-2">{JSON.stringify(debugInfo, null, 2)}</pre>
-      <div className="mt-2">
-        <button className="btn-outline" onClick={() => {
-          const demo = [{ id: 1, name: "Demo Beach", shortDescription: "Demo place", imageUrl: null, distanceKm: 1, rating: 4.5 }];
-          setPlaces(demo);
-        }}>Use demo places</button>
+    );
+  }
+
+  if (!places.length) {
+    return (
+      <div className="space-y-2">
+        <p className="text-sm opacity-70">No nearby places found.</p>
+        <pre className="text-xs opacity-60">
+          {JSON.stringify(debugInfo, null, 2)}
+        </pre>
+        <button
+          className="btn-outline"
+          onClick={() =>
+            setPlaces([
+              {
+                id: 1,
+                name: "Demo Beach",
+                shortDescription: "Demo place",
+                imageUrl: null,
+                distanceKm: 1,
+                rating: 4.5,
+              },
+            ])
+          }
+        >
+          Use demo places
+        </button>
       </div>
-    </div>
-  );
+    );
+  }
 
   return (
-    <div className="grid md:grid-cols-2 gap-4">
+    <div className="grid gap-4 sm:grid-cols-2">
       {places.map((p) => (
         <PlaceCard key={p.id} place={p} onAdd={handleAdd} />
       ))}

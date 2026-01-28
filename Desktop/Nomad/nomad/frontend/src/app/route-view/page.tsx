@@ -23,31 +23,44 @@ export default function RouteViewPage() {
 
   return (
     <ProtectedPage>
-      <div className="section py-12 space-y-6">
-        <div className="card p-6 space-y-4">
-        <h2 className="text-2xl font-bold">Trip Route</h2>
-        <div className="flex gap-3">
-          <input
-            value={tripId}
-            onChange={(e) => setTripId(e.target.value)}
-            placeholder="Trip Request ID"
-            className="border rounded-xl px-4 py-2"
-          />
-          <input
-            value={dayNumber}
-            onChange={(e) => setDayNumber(e.target.value)}
-            placeholder="Day"
-            className="border rounded-xl px-4 py-2"
-          />
-          <button className="btn-primary" onClick={handleFetch}>Fetch Route</button>
-        </div>
-        {error && <p className="text-sm text-red-600">{error}</p>}
-      </div>
+      <div className="section py-10 sm:py-12 space-y-6">
+        {/* Controls */}
+        <div className="card p-6 space-y-5">
+          <h2 className="text-2xl font-bold">Trip Route</h2>
 
+          <div className="flex flex-wrap gap-3">
+            <input
+              value={tripId}
+              onChange={(e) => setTripId(e.target.value)}
+              placeholder="Trip Request ID"
+              className="rounded-xl px-4 py-2 border flex-1 min-w-[200px]"
+              style={{ borderColor: "var(--color-border)" }}
+            />
+
+            <input
+              value={dayNumber}
+              onChange={(e) => setDayNumber(e.target.value)}
+              placeholder="Day"
+              className="rounded-xl px-4 py-2 border w-24"
+              style={{ borderColor: "var(--color-border)" }}
+            />
+
+            <button className="btn-primary" onClick={handleFetch}>
+              Fetch Route
+            </button>
+          </div>
+
+          {error && (
+            <p className="text-sm text-[rgb(220,38,38)]">{error}</p>
+          )}
+        </div>
+
+        {/* Map */}
         <div className="card p-4">
           <MapView routeGeoJson={route} />
         </div>
       </div>
     </ProtectedPage>
   );
+
 }

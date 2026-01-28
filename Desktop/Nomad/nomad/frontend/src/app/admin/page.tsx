@@ -91,189 +91,200 @@ export default function AdminPage() {
     }
   };
 
-  return (
-    <ProtectedPage requiredRole="ADMIN">
-      <div className="section py-12 space-y-8">
-        <div>
-          <h2 className="text-2xl font-bold">Admin Console</h2>
-          <p className="text-slate-600">Manage Places and Vehicles (admin role required).</p>
-        </div>
+return (
+  <ProtectedPage requiredRole="ADMIN">
+    <div className="section py-10 sm:py-12 space-y-8">
+      {/* Header */}
+      <div>
+        <h2 className="text-2xl font-bold">Admin Console</h2>
+        <p className="text-sm opacity-70">
+          Manage Places and Vehicles (admin role required).
+        </p>
+      </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && (
+        <p className="text-sm text-[rgb(220,38,38)]">{error}</p>
+      )}
 
-        <div className="grid lg:grid-cols-2 gap-8">
-          <div className="card p-6 space-y-4">
-            <h3 className="text-lg font-semibold">Create Place</h3>
-            <div className="grid gap-3">
-              <input
-                name="name"
-                value={placeForm.name}
-                onChange={handlePlaceChange}
-                placeholder="Name"
-                className="border rounded-xl px-4 py-2"
-              />
-              <input
-                name="city"
-                value={placeForm.city}
-                onChange={handlePlaceChange}
-                placeholder="City"
-                className="border rounded-xl px-4 py-2"
-              />
-              <input
-                name="latitude"
-                value={placeForm.latitude}
-                onChange={handlePlaceChange}
-                placeholder="Latitude"
-                className="border rounded-xl px-4 py-2"
-              />
-              <input
-                name="longitude"
-                value={placeForm.longitude}
-                onChange={handlePlaceChange}
-                placeholder="Longitude"
-                className="border rounded-xl px-4 py-2"
-              />
-              <select
-                name="category"
-                value={placeForm.category}
-                onChange={handlePlaceChange}
-                className="border rounded-xl px-4 py-2"
-              >
-                {[
-                  "FOOD",
-                  "CULTURE",
-                  "NATURE",
-                  "ADVENTURE",
-                  "SHOPPING",
-                  "NIGHTLIFE",
-                  "RELAXATION",
-                ].map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
-              <input
-                name="rating"
-                value={placeForm.rating}
-                onChange={handlePlaceChange}
-                placeholder="Rating"
-                className="border rounded-xl px-4 py-2"
-              />
-            </div>
-            <button className="btn-primary" onClick={handleCreatePlace}>
-              Create Place
-            </button>
-          </div>
+      {/* Create forms */}
+      <div className="grid gap-8 lg:grid-cols-2">
+        {/* Create Place */}
+        <div className="card p-6 space-y-4">
+          <h3 className="text-lg font-semibold">Create Place</h3>
 
-          <div className="card p-6 space-y-4">
-            <h3 className="text-lg font-semibold">Create Vehicle</h3>
-            <div className="grid gap-3">
-              <select
-                name="vehicleType"
-                value={vehicleForm.vehicleType}
-                onChange={handleVehicleChange}
-                className="border rounded-xl px-4 py-2"
-              >
-                <option value="CAB">CAB</option>
-                <option value="MINI_BUS">MINI_BUS</option>
-                <option value="BUS">BUS</option>
-              </select>
+          <div className="grid gap-3">
+            {[
+              { name: "name", placeholder: "Name" },
+              { name: "city", placeholder: "City" },
+              { name: "latitude", placeholder: "Latitude" },
+              { name: "longitude", placeholder: "Longitude" },
+              { name: "rating", placeholder: "Rating" },
+            ].map((field) => (
               <input
-                name="capacity"
-                value={vehicleForm.capacity}
-                onChange={handleVehicleChange}
-                placeholder="Capacity"
-                className="border rounded-xl px-4 py-2"
+                key={field.name}
+                name={field.name}
+                value={(placeForm as any)[field.name]}
+                onChange={handlePlaceChange}
+                placeholder={field.placeholder}
+                className="rounded-xl px-4 py-2 border"
+                style={{
+                  borderColor: "var(--color-border)",
+                  backgroundColor: "var(--color-bg)",
+                }}
               />
-              <input
-                name="driverName"
-                value={vehicleForm.driverName}
-                onChange={handleVehicleChange}
-                placeholder="Driver Name"
-                className="border rounded-xl px-4 py-2"
-              />
-              <input
-                name="vehicleNumber"
-                value={vehicleForm.vehicleNumber}
-                onChange={handleVehicleChange}
-                placeholder="Vehicle Number"
-                className="border rounded-xl px-4 py-2"
-              />
-              <select
-                name="availabilityStatus"
-                value={vehicleForm.availabilityStatus}
-                onChange={handleVehicleChange}
-                className="border rounded-xl px-4 py-2"
-              >
-                <option value="AVAILABLE">AVAILABLE</option>
-                <option value="ASSIGNED">ASSIGNED</option>
-                <option value="UNAVAILABLE">UNAVAILABLE</option>
-              </select>
-            </div>
-            <button className="btn-primary" onClick={handleCreateVehicle}>
-              Create Vehicle
-            </button>
-          </div>
-        </div>
+            ))}
 
-        <div className="grid lg:grid-cols-2 gap-8">
-          <div className="card p-6 space-y-4">
-            <h3 className="text-lg font-semibold">Places</h3>
-            <div className="grid gap-3">
-              {places.map((place) => (
-                <div key={place.id} className="flex items-center justify-between border rounded-xl p-3">
-                  <div>
-                    <p className="font-semibold">{place.name}</p>
-                    <p className="text-xs text-slate-500">
-                      {place.city} · {place.category}
-                    </p>
-                  </div>
-                  <button
-                    className="btn-outline"
-                    onClick={async () => {
-                      await deletePlace(place.id);
-                      await loadData();
-                    }}
-                  >
-                    Delete
-                  </button>
-                </div>
+            <select
+              name="category"
+              value={placeForm.category}
+              onChange={handlePlaceChange}
+              className="rounded-xl px-4 py-2 border"
+              style={{ borderColor: "var(--color-border)" }}
+            >
+              {[
+                "FOOD",
+                "CULTURE",
+                "NATURE",
+                "ADVENTURE",
+                "SHOPPING",
+                "NIGHTLIFE",
+                "RELAXATION",
+              ].map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
               ))}
-            </div>
+            </select>
           </div>
 
-          <div className="card p-6 space-y-4">
-            <h3 className="text-lg font-semibold">Vehicles</h3>
-            <div className="grid gap-3">
-              {vehicles.map((vehicle) => (
-                <div
-                  key={vehicle.id}
-                  className="flex items-center justify-between border rounded-xl p-3"
+          <button className="btn-primary" onClick={handleCreatePlace}>
+            Create Place
+          </button>
+        </div>
+
+        {/* Create Vehicle */}
+        <div className="card p-6 space-y-4">
+          <h3 className="text-lg font-semibold">Create Vehicle</h3>
+
+          <div className="grid gap-3">
+            <select
+              name="vehicleType"
+              value={vehicleForm.vehicleType}
+              onChange={handleVehicleChange}
+              className="rounded-xl px-4 py-2 border"
+              style={{ borderColor: "var(--color-border)" }}
+            >
+              <option value="CAB">CAB</option>
+              <option value="MINI_BUS">MINI_BUS</option>
+              <option value="BUS">BUS</option>
+            </select>
+
+            {[
+              { name: "capacity", placeholder: "Capacity" },
+              { name: "driverName", placeholder: "Driver Name" },
+              { name: "vehicleNumber", placeholder: "Vehicle Number" },
+            ].map((field) => (
+              <input
+                key={field.name}
+                name={field.name}
+                value={(vehicleForm as any)[field.name]}
+                onChange={handleVehicleChange}
+                placeholder={field.placeholder}
+                className="rounded-xl px-4 py-2 border"
+                style={{
+                  borderColor: "var(--color-border)",
+                  backgroundColor: "var(--color-bg)",
+                }}
+              />
+            ))}
+
+            <select
+              name="availabilityStatus"
+              value={vehicleForm.availabilityStatus}
+              onChange={handleVehicleChange}
+              className="rounded-xl px-4 py-2 border"
+              style={{ borderColor: "var(--color-border)" }}
+            >
+              <option value="AVAILABLE">AVAILABLE</option>
+              <option value="ASSIGNED">ASSIGNED</option>
+              <option value="UNAVAILABLE">UNAVAILABLE</option>
+            </select>
+          </div>
+
+          <button className="btn-primary" onClick={handleCreateVehicle}>
+            Create Vehicle
+          </button>
+        </div>
+      </div>
+
+      {/* Lists */}
+      <div className="grid gap-8 lg:grid-cols-2">
+        {/* Places */}
+        <div className="card p-6 space-y-4">
+          <h3 className="text-lg font-semibold">Places</h3>
+
+          <div className="grid gap-3">
+            {places.map((place) => (
+              <div
+                key={place.id}
+                className="flex items-center justify-between rounded-xl p-3 border"
+                style={{ borderColor: "var(--color-border)" }}
+              >
+                <div>
+                  <p className="font-semibold">{place.name}</p>
+                  <p className="text-xs opacity-60">
+                    {place.city} · {place.category}
+                  </p>
+                </div>
+                <button
+                  className="btn-outline"
+                  onClick={async () => {
+                    await deletePlace(place.id);
+                    await loadData();
+                  }}
                 >
-                  <div>
-                    <p className="font-semibold">
-                      {vehicle.vehicleType} · {vehicle.vehicleNumber}
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      Driver: {vehicle.driverName} · {vehicle.availabilityStatus}
-                    </p>
-                  </div>
-                  <button
-                    className="btn-outline"
-                    onClick={async () => {
-                      await deleteVehicle(vehicle.id);
-                      await loadData();
-                    }}
-                  >
-                    Delete
-                  </button>
+                  Delete
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Vehicles */}
+        <div className="card p-6 space-y-4">
+          <h3 className="text-lg font-semibold">Vehicles</h3>
+
+          <div className="grid gap-3">
+            {vehicles.map((vehicle) => (
+              <div
+                key={vehicle.id}
+                className="flex items-center justify-between rounded-xl p-3 border"
+                style={{ borderColor: "var(--color-border)" }}
+              >
+                <div>
+                  <p className="font-semibold">
+                    {vehicle.vehicleType} · {vehicle.vehicleNumber}
+                  </p>
+                  <p className="text-xs opacity-60">
+                    Driver: {vehicle.driverName} ·{" "}
+                    {vehicle.availabilityStatus}
+                  </p>
                 </div>
-              ))}
-            </div>
+                <button
+                  className="btn-outline"
+                  onClick={async () => {
+                    await deleteVehicle(vehicle.id);
+                    await loadData();
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            ))}
           </div>
         </div>
       </div>
-    </ProtectedPage>
-  );
+    </div>
+  </ProtectedPage>
+);
 }

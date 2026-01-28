@@ -11,13 +11,21 @@ type MapViewProps = {
   routeGeoJson?: string | null;
 };
 
-export default function MapView({ places = [], center, routeGeoJson }: MapViewProps) {
+export default function MapView({
+  places = [],
+  center,
+  routeGeoJson,
+}: MapViewProps) {
   const mapRef = useRef<HTMLDivElement | null>(null);
-  const mapInstance = useRef<any>(null);
-  const markerRefs = useRef<any[]>([]);
-  const mapToken = useMemo(() => process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "", []);
+  const mapInstance = useRef<mapboxgl.Map | null>(null);
+  const markerRefs = useRef<mapboxgl.Marker[]>([]);
+  const mapToken = useMemo(
+    () => process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "",
+    []
+  );
   const [routeError, setRouteError] = useState<string | null>(null);
 
+  /* Init map */
   useEffect(() => {
     if (!mapRef.current || !mapToken || mapInstance.current) return;
 
@@ -33,46 +41,62 @@ export default function MapView({ places = [], center, routeGeoJson }: MapViewPr
     mapInstance.current = map;
 
     return () => {
-      markerRefs.current.forEach((marker) => marker.remove());
+      markerRefs.current.forEach((m) => m.remove());
       markerRefs.current = [];
       map.remove();
       mapInstance.current = null;
     };
   }, [mapToken, center]);
 
+  /* Markers */
   useEffect(() => {
     if (!mapInstance.current) return;
-    markerRefs.current.forEach((marker) => marker.remove());
+
+    markerRefs.current.forEach((m) => m.remove());
     markerRefs.current = [];
     setRouteError(null);
 
     if (!places.length) return;
 
     const bounds = new mapboxgl.LngLatBounds();
+
     places.forEach((place) => {
-      const marker = new mapboxgl.Marker({ color: "#4f6cff" })
+      const marker = new mapboxgl.Marker({
+        color: "#61c2a2",
+      })
         .setLngLat([place.longitude, place.latitude])
-        .setPopup(new mapboxgl.Popup().setHTML(`<strong>${place.name}</strong>`))
-        .addTo(mapInstance.current as any);
+        .setPopup(
+          new mapboxgl.Popup().setHTML(
+            `<strong>${place.name}</strong>`
+          )
+        )
+        .addTo(mapInstance.current!);
+
       markerRefs.current.push(marker);
       bounds.extend([place.longitude, place.latitude]);
     });
 
-    mapInstance.current.fitBounds(bounds, { padding: 60, maxZoom: 13 });
+    mapInstance.current.fitBounds(bounds, {
+      padding: 60,
+      maxZoom: 13,
+    });
   }, [places]);
 
+  /* Route */
   useEffect(() => {
     const map = mapInstance.current;
     if (!map || !mapToken) return;
-    if (routeGeoJson) {
-      try {
+
+    const clearRoute = () => {
+      if (map.getLayer("route-line")) map.removeLayer("route-line");
+      if (map.getSource("route")) map.removeSource("route");
+    };
+
+    try {
+      if (routeGeoJson) {
         const geometry = JSON.parse(routeGeoJson);
-        if (map.getLayer("route-line")) {
-          map.removeLayer("route-line");
-        }
-        if (map.getSource("route")) {
-          map.removeSource("route");
-        }
+        clearRoute();
+
         map.addSource("route", {
           type: "geojson",
           data: {
@@ -80,6 +104,7 @@ export default function MapView({ places = [], center, routeGeoJson }: MapViewPr
             geometry,
           },
         });
+
         map.addLayer({
           id: "route-line",
           type: "line",
@@ -89,49 +114,43 @@ export default function MapView({ places = [], center, routeGeoJson }: MapViewPr
             "line-cap": "round",
           },
           paint: {
-            "line-color": "#4f6cff",
+            "line-color": "#61c2a2",
             "line-width": 4,
           },
         });
         return;
-      } catch (err) {
-        setRouteError("Invalid route data");
       }
-    }
-    if (places.length < 2) {
-      if (map.getLayer("route-line")) {
-        map.removeLayer("route-line");
-      }
-      if (map.getSource("route")) {
-        map.removeSource("route");
-      }
+    } catch {
+      setRouteError("Invalid route data");
       return;
     }
 
-    const coords = places.map((p) => `${p.longitude},${p.latitude}`).join(";");
-    const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${coords}?geometries=geojson&access_token=${mapToken}`;
+    if (places.length < 2) {
+      clearRoute();
+      return;
+    }
 
-    fetch(url)
+    const coords = places
+      .map((p) => `${p.longitude},${p.latitude}`)
+      .join(";");
+
+    fetch(
+      `https://api.mapbox.com/directions/v5/mapbox/driving/${coords}?geometries=geojson&access_token=${mapToken}`
+    )
       .then((res) => res.json())
       .then((data) => {
         if (!data.routes?.length) {
-          setRouteError("No route found for selected places");
+          setRouteError("No route found");
           return;
         }
-        const route = data.routes[0].geometry;
 
-        if (map.getLayer("route-line")) {
-          map.removeLayer("route-line");
-        }
-        if (map.getSource("route")) {
-          map.removeSource("route");
-        }
+        clearRoute();
 
         map.addSource("route", {
           type: "geojson",
           data: {
             type: "Feature",
-            geometry: route,
+            geometry: data.routes[0].geometry,
           },
         });
 
@@ -144,7 +163,7 @@ export default function MapView({ places = [], center, routeGeoJson }: MapViewPr
             "line-cap": "round",
           },
           paint: {
-            "line-color": "#4f6cff",
+            "line-color": "#61c2a2",
             "line-width": 4,
           },
         });
@@ -155,14 +174,20 @@ export default function MapView({ places = [], center, routeGeoJson }: MapViewPr
   return (
     <div className="space-y-3">
       {!mapToken && (
-        <p className="text-sm text-slate-500">
-          Set NEXT_PUBLIC_MAPBOX_TOKEN in frontend/.env.local to enable the map.
+        <p className="text-sm opacity-60">
+          Set NEXT_PUBLIC_MAPBOX_TOKEN to enable maps.
         </p>
       )}
+
       {routeError && (
-        <p className="text-sm text-red-600">{routeError}</p>
+        <p className="text-sm text-[rgb(220,38,38)]">{routeError}</p>
       )}
-      <div className="h-[420px] rounded-xl overflow-hidden" ref={mapRef} />
+
+      <div
+        ref={mapRef}
+        className="h-[360px] sm:h-[420px] rounded-xl border overflow-hidden"
+        style={{ borderColor: "var(--color-border)" }}
+      />
     </div>
   );
 }

@@ -55,32 +55,103 @@ export default function ProfilePage() {
       setStatus("Update failed");
     }
   };
-
+  
   return (
     <ProtectedPage>
-      <div className="section py-12 space-y-6">
-        <div className="card p-6 space-y-4">
-        <h2 className="text-2xl font-bold">Profile</h2>
-        <div className="grid md:grid-cols-2 gap-4">
-          <input name="name" value={form.name} onChange={handleChange} placeholder="Name" className="border rounded-xl px-4 py-2" />
-          <input name="phoneNumber" value={form.phoneNumber} onChange={handleChange} placeholder="Phone Number (+91...)" className="border rounded-xl px-4 py-2" />
-          <input name="city" value={form.city} onChange={handleChange} placeholder="City" className="border rounded-xl px-4 py-2" />
-          <input name="latitude" value={form.latitude} onChange={handleChange} placeholder="Latitude" className="border rounded-xl px-4 py-2" />
-          <input name="longitude" value={form.longitude} onChange={handleChange} placeholder="Longitude" className="border rounded-xl px-4 py-2" />
-          <select name="interestType" value={form.interestType} onChange={handleChange} className="border rounded-xl px-4 py-2">
-            {["FOOD", "CULTURE", "NATURE", "ADVENTURE", "SHOPPING", "NIGHTLIFE", "RELAXATION"].map((item) => (
-              <option key={item} value={item}>{item}</option>
-            ))}
-          </select>
-          <select name="travelPreference" value={form.travelPreference} onChange={handleChange} className="border rounded-xl px-4 py-2">
-            <option value="SOLO">SOLO</option>
-            <option value="GROUP">GROUP</option>
-          </select>
-        </div>
-        <button className="btn-primary" onClick={handleSave}>Save</button>
-        {status && <p className="text-sm text-slate-600">{status}</p>}
+      <div className="section py-10 sm:py-12 space-y-6">
+        <div className="card p-6 space-y-5">
+          <h2 className="text-2xl font-bold">Profile</h2>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <input
+              name="name"
+              value={form.name}
+              onChange={handleChange}
+              placeholder="Name"
+              className="rounded-xl px-4 py-2 border"
+              style={{ borderColor: "var(--color-border)" }}
+            />
+
+            <input
+              name="phoneNumber"
+              value={form.phoneNumber}
+              onChange={handleChange}
+              placeholder="Phone Number (+91...)"
+              className="rounded-xl px-4 py-2 border"
+              style={{ borderColor: "var(--color-border)" }}
+            />
+
+            <input
+              name="city"
+              value={form.city}
+              onChange={handleChange}
+              placeholder="City"
+              className="rounded-xl px-4 py-2 border"
+              style={{ borderColor: "var(--color-border)" }}
+            />
+
+            <input
+              name="latitude"
+              value={form.latitude}
+              onChange={handleChange}
+              placeholder="Latitude"
+              className="rounded-xl px-4 py-2 border"
+              style={{ borderColor: "var(--color-border)" }}
+            />
+
+            <input
+              name="longitude"
+              value={form.longitude}
+              onChange={handleChange}
+              placeholder="Longitude"
+              className="rounded-xl px-4 py-2 border"
+              style={{ borderColor: "var(--color-border)" }}
+            />
+
+            <select
+              name="interestType"
+              value={form.interestType}
+              onChange={handleChange}
+              className="rounded-xl px-4 py-2 border"
+              style={{ borderColor: "var(--color-border)" }}
+            >
+              {[
+                "FOOD",
+                "CULTURE",
+                "NATURE",
+                "ADVENTURE",
+                "SHOPPING",
+                "NIGHTLIFE",
+                "RELAXATION",
+              ].map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+
+            <select
+              name="travelPreference"
+              value={form.travelPreference}
+              onChange={handleChange}
+              className="rounded-xl px-4 py-2 border"
+              style={{ borderColor: "var(--color-border)" }}
+            >
+              <option value="SOLO">SOLO</option>
+              <option value="GROUP">GROUP</option>
+            </select>
+          </div>
+
+          <button className="btn-primary w-full sm:w-auto" onClick={handleSave}>
+            Save
+          </button>
+
+          {status && (
+            <p className="text-sm opacity-70">{status}</p>
+          )}
         </div>
       </div>
     </ProtectedPage>
   );
+
 }

@@ -23,7 +23,7 @@ export default function PaymentPage() {
       const tripReq = searchParams?.get('tripRequestId');
       if (pre) setAmount(String(pre));
       if (tripReq) setTripId(String(tripReq));
-    } catch (e) {}
+    } catch (e) { }
   }, [searchParams]);
 
   // When trips are loaded, or tripId changes, prefill amount from any available field
@@ -127,57 +127,100 @@ export default function PaymentPage() {
 
   return (
     <ProtectedPage>
-      <div className="section py-12 space-y-6">
-        <div className="card p-6 space-y-4">
-        <h2 className="text-2xl font-bold">Payment</h2>
-        <div className="grid md:grid-cols-2 gap-4">
-          <label className="space-y-2">
-            <span className="text-sm font-semibold">Select Booking</span>
-            <select
-              value={tripId}
-              onChange={(e) => {
-                const v = e.target.value;
-                setTripId(v);
-                const t = trips.find(x => String(x.tripRequestId) === v || String(x.id) === v);
-                if (t) {
-                  if (typeof t.estimatedCost !== 'undefined') setAmount(String(t.estimatedCost));
-                  else if (typeof t.amount !== 'undefined') setAmount(String(t.amount));
-                  else if (typeof t.price !== 'undefined') setAmount(String(t.price));
-                  else setAmount("");
-                }
-              }}
-              className="border rounded-xl px-4 py-2"
+      <div className="section py-10 sm:py-12 space-y-6">
+        <div className="card p-6 space-y-5">
+          <h2 className="text-2xl font-bold">Payment</h2>
+
+          {/* Booking + amount */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="space-y-2">
+              <span className="text-sm font-semibold">Select Booking</span>
+              <select
+                value={tripId}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setTripId(v);
+                  const t = trips.find(
+                    (x) =>
+                      String(x.tripRequestId) === v ||
+                      String(x.id) === v
+                  );
+                  if (t) {
+                    if (typeof t.estimatedCost !== "undefined")
+                      setAmount(String(t.estimatedCost));
+                    else if (typeof t.amount !== "undefined")
+                      setAmount(String(t.amount));
+                    else if (typeof t.price !== "undefined")
+                      setAmount(String(t.price));
+                    else setAmount("");
+                  }
+                }}
+                className="rounded-xl px-4 py-2 border"
+                style={{ borderColor: "var(--color-border)" }}
+              >
+                <option value="">-- Choose a booking --</option>
+                {trips.map((t) => (
+                  <option
+                    key={t.tripRequestId || t.id}
+                    value={t.tripRequestId || t.id}
+                  >
+                    {`#${t.tripRequestId || t.id} — ${t.city || "unknown"
+                      } • ${t.status}`}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="space-y-2">
+              <span className="text-sm font-semibold">Amount (INR)</span>
+              <input
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="rounded-xl px-4 py-2 border"
+                style={{ borderColor: "var(--color-border)" }}
+              />
+            </label>
+          </div>
+
+          {/* Action */}
+          <div className="flex flex-wrap gap-3">
+            <button
+              className="btn-primary"
+              onClick={handleCreate}
+              disabled={!tripId || Number(tripId) <= 0}
             >
-              <option value="">-- Choose a booking --</option>
-              {trips.map((t) => (
-                <option key={t.tripRequestId || t.id} value={t.tripRequestId || t.id}>
-                  {`#${t.tripRequestId || t.id} — ${t.city || 'unknown'} • ${t.status}`}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="space-y-2">
-            <span className="text-sm font-semibold">Amount (INR)</span>
-            <input value={amount} onChange={(e) => setAmount(e.target.value)} className="border rounded-xl px-4 py-2" />
-          </label>
-        </div>
-            <div className="flex gap-3">
-              <button className="btn-primary" onClick={handleCreate} disabled={!tripId || Number(tripId) <= 0}>Pay with Razorpay</button>
-            </div>
-            {/* Show warning only if no bookings and no tripId from query */}
-            {trips.length === 0 && !tripId && (
-              <div className="space-y-2">
-                <p className="text-sm text-red-600">No bookings found. Create a booking from the Trip Planner or enroll in a package first.</p>
-                <div className="flex gap-2">
-                  <a href="/trip-planner" className="btn-secondary">Go to Trip Planner</a>
-                  <a href="/packages" className="btn-secondary">View Packages</a>
-                </div>
+              Pay with Razorpay
+            </button>
+          </div>
+
+          {/* No bookings */}
+          {trips.length === 0 && !tripId && (
+            <div className="space-y-2">
+              <p className="text-sm text-[rgb(220,38,38)]">
+                No bookings found. Create a booking from the Trip Planner or enroll
+                in a package first.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <a href="/trip-planner" className="btn-outline">
+                  Go to Trip Planner
+                </a>
+                <a href="/packages" className="btn-outline">
+                  View Packages
+                </a>
               </div>
-            )}
-        {/* Show order/status only if a booking is selected and order exists */}
-        {orderId && tripId && <p className="text-sm text-slate-600">Order ID: {orderId}</p>}
-        {status && tripId && <p className="text-sm text-slate-600">Status: {status}</p>}
-        {error && <p className="text-sm text-red-600">{error}</p>}
+            </div>
+          )}
+
+          {/* Status */}
+          {orderId && tripId && (
+            <p className="text-sm opacity-70">Order ID: {orderId}</p>
+          )}
+          {status && tripId && (
+            <p className="text-sm opacity-70">Status: {status}</p>
+          )}
+          {error && (
+            <p className="text-sm text-[rgb(220,38,38)]">{error}</p>
+          )}
         </div>
       </div>
     </ProtectedPage>

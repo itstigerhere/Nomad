@@ -1,13 +1,14 @@
 "use client";
 
-import { fetchMe } from "@/lib/authApi";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { fetchMe } from "@/lib/authApi";
 
 type User = {
   id: number;
   email: string;
-  role?: string;
+  role?: "ADMIN" | "USER";
 };
 
 export default function TopNav() {
@@ -15,43 +16,44 @@ export default function TopNav() {
   const router = useRouter();
 
   useEffect(() => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("nomad_token") : null;
-    if (!token) {
-      setUser(null);
-      return;
-    }
+    const token = localStorage.getItem("nomad_token");
+    if (!token) return;
 
     fetchMe()
-      .then((data) => setUser({ id: data.id, email: data.email, role: data.role }))
+      .then((me) =>
+        setUser({ id: me.id, email: me.email, role: me.role })
+      )
       .catch(() => setUser(null));
   }, []);
 
   const logout = () => {
     localStorage.removeItem("nomad_token");
-    setUser(null);
-    // redirect to home and reload so app state resets
     router.push("/");
     window.location.reload();
   };
 
+  const linkClass =
+    "text-sm font-semibold opacity-80 hover:opacity-100 transition";
+
   return (
-    <nav className="flex gap-4 text-sm font-semibold text-slate-600 items-center">
-      <a href="/" className="hover:text-brand-700">Home</a>
-      <a href="/trip-planner" className="hover:text-brand-700">Planner</a>
-      <a href="/map" className="hover:text-brand-700">Map</a>
-      <a href="/route-view" className="hover:text-brand-700">Route</a>
-      <a href="/trip-summary" className="hover:text-brand-700">Summary</a>
-      <a href="/payment" className="hover:text-brand-700">Payment</a>
-      <a href="/auth" className="hover:text-brand-700">Auth</a>
-      <a href="/profile" className="hover:text-brand-700">Profile</a>
+    <nav className="flex items-center gap-4">
+      <Link href="/" className={linkClass}>Home</Link>
+      <Link href="/trip-planner" className={linkClass}>Planner</Link>
+      <Link href="/map" className={linkClass}>Map</Link>
+      <Link href="/trip-summary" className={linkClass}>Summary</Link>
+
       {user?.role === "ADMIN" && (
-        <>
-          <a href="/admin" className="hover:text-brand-700">Admin</a>
-          <a href="/group-status" className="hover:text-brand-700">Groups</a>
-        </>
+        <Link href="/admin" className={linkClass}>Admin</Link>
       )}
+
+      {!user && (
+        <Link href="/auth" className={linkClass}>Auth</Link>
+      )}
+
       {user && (
-        <button className="btn-outline" onClick={logout}>Logout</button>
+        <button onClick={logout} className="btn-outline ml-2">
+          Logout
+        </button>
       )}
     </nav>
   );

@@ -1,15 +1,18 @@
 "use client";
 
-import { fetchMe } from "@/lib/authApi";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { fetchMe } from "@/lib/authApi";
 
 type ProtectedPageProps = {
   children: React.ReactNode;
   requiredRole?: "ADMIN" | "USER";
 };
 
-export default function ProtectedPage({ children, requiredRole }: ProtectedPageProps) {
+export default function ProtectedPage({
+  children,
+  requiredRole,
+}: ProtectedPageProps) {
   const router = useRouter();
   const [allowed, setAllowed] = useState(false);
 
@@ -28,13 +31,20 @@ export default function ProtectedPage({ children, requiredRole }: ProtectedPageP
         }
         setAllowed(true);
       })
-      .catch(() => router.replace("/auth"));
+      .catch(() => {
+        router.replace("/auth");
+      });
   }, [router, requiredRole]);
 
   if (!allowed) {
     return (
-      <div className="section py-12">
-        <div className="card p-6 text-slate-600">Checking access…</div>
+      <div className="section py-10 sm:py-12">
+        <div
+          className="card p-6 text-sm opacity-70"
+          style={{ borderColor: "var(--color-border)" }}
+        >
+          Checking access…
+        </div>
       </div>
     );
   }

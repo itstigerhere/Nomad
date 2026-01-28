@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
 import MapView from "@/components/MapView";
 import { fetchNearbyPlaces, PlaceNearby } from "@/lib/placeApi";
@@ -14,6 +14,11 @@ export default function MapPage() {
   const [error, setError] = useState<string | null>(null);
   const [optimizeRoute, setOptimizeRoute] = useState(true);
 
+  const orderedPlaces = useMemo(() => {
+    if (!optimizeRoute) return places;
+    return [...places].sort((a, b) => a.distanceKm - b.distanceKm);
+  }, [places, optimizeRoute]);
+
   const handleSearch = async () => {
     setError(null);
     try {
@@ -26,29 +31,68 @@ export default function MapPage() {
         limit: 20,
       });
       setPlaces(data);
-    } catch (err) {
+    } catch {
       setError("Failed to load nearby places");
     }
   };
 
   return (
-    <div className="section py-12 space-y-6">
+    <div className="section py-10 sm:py-12 space-y-6">
+      {/* Header */}
       <div>
         <h2 className="text-2xl font-bold">Map View</h2>
-        <p className="text-slate-600">Visualize places and route suggestions (Mapbox Directions).</p>
+        <p className="text-sm opacity-70">
+          Visualize places and route suggestions.
+        </p>
       </div>
+
+      {/* Controls */}
       <div className="card p-6 space-y-4">
-        <div className="grid md:grid-cols-4 gap-4">
-          <input value={city} onChange={(e) => setCity(e.target.value)} className="border rounded-xl px-4 py-2" placeholder="City" />
-          <input value={latitude} onChange={(e) => setLatitude(e.target.value)} className="border rounded-xl px-4 py-2" placeholder="Latitude" />
-          <input value={longitude} onChange={(e) => setLongitude(e.target.value)} className="border rounded-xl px-4 py-2" placeholder="Longitude" />
-          <select value={interest} onChange={(e) => setInterest(e.target.value)} className="border rounded-xl px-4 py-2">
-            {["FOOD", "CULTURE", "NATURE", "ADVENTURE", "SHOPPING", "NIGHTLIFE", "RELAXATION"].map((item) => (
-              <option key={item} value={item}>{item}</option>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <input
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+            placeholder="City"
+            className="rounded-xl px-4 py-2 border"
+            style={{ borderColor: "var(--color-border)" }}
+          />
+          <input
+            value={latitude}
+            onChange={(e) => setLatitude(e.target.value)}
+            placeholder="Latitude"
+            className="rounded-xl px-4 py-2 border"
+            style={{ borderColor: "var(--color-border)" }}
+          />
+          <input
+            value={longitude}
+            onChange={(e) => setLongitude(e.target.value)}
+            placeholder="Longitude"
+            className="rounded-xl px-4 py-2 border"
+            style={{ borderColor: "var(--color-border)" }}
+          />
+          <select
+            value={interest}
+            onChange={(e) => setInterest(e.target.value)}
+            className="rounded-xl px-4 py-2 border"
+            style={{ borderColor: "var(--color-border)" }}
+          >
+            {[
+              "FOOD",
+              "CULTURE",
+              "NATURE",
+              "ADVENTURE",
+              "SHOPPING",
+              "NIGHTLIFE",
+              "RELAXATION",
+            ].map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
             ))}
           </select>
         </div>
-        <label className="flex items-center gap-2 text-sm text-slate-600">
+
+        <label className="flex items-center gap-2 text-sm opacity-70">
           <input
             type="checkbox"
             checked={optimizeRoute}
@@ -56,32 +100,39 @@ export default function MapPage() {
           />
           Optimize route order by distance
         </label>
-        <button className="btn-primary" onClick={handleSearch}>Load Nearby Places</button>
-        {error && <p className="text-sm text-red-600">{error}</p>}
+
+        <button className="btn-primary w-full sm:w-auto" onClick={handleSearch}>
+          Load Nearby Places
+        </button>
+
+        {error && (
+          <p className="text-sm text-[rgb(220,38,38)]">{error}</p>
+        )}
       </div>
 
+      {/* Map */}
       <div className="card p-4">
-        {(() => {
-          const orderedPlaces = optimizeRoute
-            ? [...places].sort((a, b) => a.distanceKm - b.distanceKm)
-            : places;
-          return (
-            <MapView
-              places={orderedPlaces}
-              center={[Number(longitude), Number(latitude)]}
-            />
-          );
-        })()}
+        <MapView
+          places={orderedPlaces}
+          center={[Number(longitude), Number(latitude)]}
+        />
       </div>
 
-      {!!places.length && (
+      {/* List */}
+      {!!orderedPlaces.length && (
         <div className="card p-6 space-y-3">
           <h3 className="text-lg font-semibold">Nearby Places</h3>
-          <div className="grid md:grid-cols-2 gap-3">
-            {(optimizeRoute ? [...places].sort((a, b) => a.distanceKm - b.distanceKm) : places).map((place) => (
-              <div key={place.id} className="border rounded-xl p-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            {orderedPlaces.map((place) => (
+              <div
+                key={place.id}
+                className="rounded-xl p-4 border"
+                style={{ borderColor: "var(--color-border)" }}
+              >
                 <p className="font-semibold">{place.name}</p>
-                <p className="text-sm text-slate-500">{place.category} · {place.distanceKm.toFixed(2)} km</p>
+                <p className="text-sm opacity-60">
+                  {place.category} · {place.distanceKm.toFixed(2)} km
+                </p>
               </div>
             ))}
           </div>

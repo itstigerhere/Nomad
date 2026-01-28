@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
-import TopNav from "@/components/TopNav";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
-  title: "NOMAD",
-  description: "Plan weekend city trips with smart recommendations, assistance, and payments.",
+  title: "NOMADS",
+  description:
+    "Plan weekend city trips with smart recommendations, assistance, and payments.",
 };
 
 export default function RootLayout({
@@ -15,26 +17,16 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>
-        <div className="min-h-screen">
-          <header className="bg-white border-b border-slate-100">
-            <div className="section flex items-center justify-between py-5">
-              <div>
-                <img
-                  src="/nomads_d.png"
-                  alt="Nomad Logo"
-                  className="object-contain h-10"
-                />
-              </div>
-              <TopNav />
-            </div>
-          </header>
-          <main>{children}</main>
-          <footer className="border-t border-slate-100 bg-white mt-16">
-            <div className="section py-8 text-sm text-slate-500">
-              © 2026 NOMAD by Tripfactory Internship Travelathon
-            </div>
-          </footer>
+      <body className="bg-[var(--color-bg)] text-[var(--color-text)] antialiased">
+        <div className="min-h-screen flex flex-col">
+          {/* Global header (transparent, hero-aware) */}
+          <Header />
+
+          {/* Page content (Hero handles its own top spacing) */}
+          <main className="flex-1">{children}</main>
+
+          {/* Global footer */}
+          <Footer />
         </div>
       </body>
     </html>

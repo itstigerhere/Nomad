@@ -52,29 +52,49 @@ export default function PlaceDetailsPage() {
   if (!place) return <div>Place not found.</div>;
 
   return (
-    <div className="section py-8">
-      <div className="grid md:grid-cols-3 gap-6">
-        <div className="col-span-2">
-          <img src={place.imageUrl || "https://via.placeholder.com/800x400?text=Place"} alt={place.name} className="w-full h-72 object-cover rounded-md" />
-          <h2 className="text-2xl font-bold mt-4">{place.name}</h2>
-          <p className="text-slate-600 mt-2">{place.description || place.shortDescription}</p>
+    <div className="section py-8 sm:py-10">
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Main content */}
+        <div className="lg:col-span-2 space-y-4">
+          <img
+            src={place.imageUrl || "https://via.placeholder.com/800x400?text=Place"}
+            alt={place.name}
+            className="w-full h-64 sm:h-72 object-cover rounded-xl"
+          />
+
+          <h2 className="text-2xl font-bold">{place.name}</h2>
+
+          <p className="text-sm sm:text-base opacity-70">
+            {place.description || place.shortDescription}
+          </p>
         </div>
-        <div className="card p-4">
-          <div className="space-y-3">
+
+        {/* Sidebar */}
+        <aside className="card p-5">
+          <div className="space-y-4">
             <div>
               <h4 className="font-semibold">Details</h4>
-              <p className="text-sm text-slate-600 mt-1">{place.address || "Address not available"}</p>
+              <p className="mt-1 text-sm opacity-70">
+                {place.address || "Address not available"}
+              </p>
             </div>
+
             <div>
               <h4 className="font-semibold">Timings</h4>
-              <p className="text-sm text-slate-600 mt-1">{place.timing || "Open daily"}</p>
+              <p className="mt-1 text-sm opacity-70">
+                {place.timing || "Open daily"}
+              </p>
             </div>
+
             <div className="flex gap-2">
-              <button className="btn-primary" onClick={handleAdd}>Add to tour</button>
+              <button className="btn-primary" onClick={handleAdd}>
+                Add to tour
+              </button>
             </div>
           </div>
-        </div>
+        </aside>
       </div>
     </div>
   );
+
 }
