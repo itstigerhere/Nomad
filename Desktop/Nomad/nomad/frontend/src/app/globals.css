@@ -4,30 +4,95 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =========================
+   Theme Tokens (LOCKED)
+   ========================= */
 :root {
   color-scheme: light;
+  --color-bg: #f9fafb;
+  --color-text: #1c1c1e;
+  --color-brand: #61c2a2;
+  --color-border: rgba(28, 28, 30, 0.08);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --color-bg: #1c1c1e;
+  --color-text: #f9fafb;
+  --color-brand: #61c2a2;
+  --color-border: rgba(249, 250, 251, 0.12);
+}
+
+/* =========================
+   Base
+   ========================= */
+html {
+  overflow-y: scroll;
 }
 
 body {
-  @apply bg-slate-50 text-slate-900;
+  @apply antialiased;
+  background-color: var(--color-bg);
+  color: var(--color-text);
 }
 
+/* =========================
+   Layout
+   ========================= */
 .section {
-  @apply max-w-6xl mx-auto px-6;
+  @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8;
 }
 
+/* =========================
+   Components
+   ========================= */
 .card {
-  @apply rounded-2xl bg-white shadow-sm border border-slate-100;
+  @apply rounded-2xl shadow-sm;
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+}
+
+[data-theme="dark"] .card {
+  background-color: rgba(249, 250, 251, 0.03);
 }
 
 .btn-primary {
-  @apply inline-flex items-center justify-center rounded-xl bg-brand-600 text-white px-5 py-3 font-semibold hover:bg-brand-700 transition;
+  @apply inline-flex items-center justify-center rounded-xl px-5 py-3 font-semibold transition;
+  background-color: var(--color-brand);
+  color: var(--color-bg);
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
 }
 
 .btn-outline {
-  @apply inline-flex items-center justify-center rounded-xl border border-slate-200 px-5 py-3 font-semibold text-slate-700 hover:bg-slate-100 transition;
+  @apply inline-flex items-center justify-center rounded-xl px-5 py-3 font-semibold transition;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  background-color: transparent;
+}
+
+.btn-outline:hover {
+  background-color: rgba(28, 28, 30, 0.04);
 }
 
 .badge {
-  @apply inline-flex items-center rounded-full bg-brand-100 text-brand-800 text-xs font-semibold px-3 py-1;
+  @apply inline-flex items-center rounded-full text-xs font-semibold px-3 py-1;
+  background-color: rgba(97, 194, 162, 0.15);
+  color: var(--color-text);
+}
+
+@keyframes fadeInScale {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
