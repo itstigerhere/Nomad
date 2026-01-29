@@ -105,8 +105,20 @@ export default function Header() {
               <Link href="/auth" className={linkClass}>Auth</Link>
             )}
 
-            <button onClick={toggleTheme} className={linkClass} title="Toggle theme">
-              {theme === 'light' ? '🌙' : '☀️'}
+            <button 
+              onClick={toggleTheme} 
+              className="text-2xl transition-all duration-300 hover:scale-110 active:scale-95 p-2 rounded-lg hover:bg-[var(--color-brand)]/10 relative overflow-hidden" 
+              title="Toggle theme"
+            >
+              <span 
+                key={theme}
+                className="inline-block animate-[fadeIn_0.5s_ease-in-out]"
+                style={{
+                  animation: 'fadeInScale 0.4s ease-in-out'
+                }}
+              >
+                {theme === 'light' ? '🌙' : '☀️'}
+              </span>
             </button>
 
             {user && (
