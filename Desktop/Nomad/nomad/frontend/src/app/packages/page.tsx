@@ -1,4 +1,3 @@
-import React from "react";
 import PackageCard from "@/components/PackageCard";
 
 async function fetchPackages() {

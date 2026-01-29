@@ -1,10 +1,10 @@
 "use client";
 
-import { login, register } from "@/lib/authApi";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import UseLocationButton from "@/components/UseLocationButton";
+import { login, register } from "@/lib/authApi";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 const MapPicker = dynamic(() => import("@/components/MapPicker"), { ssr: false });
 

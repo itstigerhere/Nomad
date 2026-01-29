@@ -33,7 +33,7 @@ public class TripPlan {
     @Column(nullable = false)
     private Integer dayNumber;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "place_id", nullable = false)
     private Place place;
 

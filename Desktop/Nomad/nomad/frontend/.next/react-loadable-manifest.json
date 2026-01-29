@@ -1,0 +1,21 @@
+{
+  "app\\auth\\page.tsx -> @/components/MapPicker": {
+    "id": "app\\auth\\page.tsx -> @/components/MapPicker",
+    "files": [
+      "static/chunks/_app-pages-browser_src_components_MapPicker_tsx.js"
+    ]
+  },
+  "app\\page.tsx -> @/components/PlacesList": {
+    "id": "app\\page.tsx -> @/components/PlacesList",
+    "files": [
+      "static/chunks/_app-pages-browser_src_components_PlacesList_tsx.js"
+    ]
+  },
+  "app\\trip-planner\\page.tsx -> @/components/LocationPicker": {
+    "id": "app\\trip-planner\\page.tsx -> @/components/LocationPicker",
+    "files": [
+      "static/css/_app-pages-browser_src_components_LocationPicker_tsx.css",
+      "static/chunks/_app-pages-browser_src_components_LocationPicker_tsx.js"
+    ]
+  }
+}

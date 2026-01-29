@@ -40,7 +40,7 @@ public class ShareController {
         response.setStatus(tripRequest.getStatus());
         response.setCreatedAt(tripRequest.getCreatedAt());
 
-        response.setPlans(plans.stream().map(plan -> {
+        java.util.List<com.tripfactory.nomad.api.dto.TripPlanItemResponse> planItems = plans.stream().map(plan -> {
             com.tripfactory.nomad.api.dto.TripPlanItemResponse item = new com.tripfactory.nomad.api.dto.TripPlanItemResponse();
             item.setDayNumber(plan.getDayNumber());
             item.setPlaceId(plan.getPlace().getId());
@@ -49,7 +49,11 @@ public class ShareController {
             item.setEndTime(plan.getEndTime());
             item.setDistanceFromPrevious(plan.getDistanceFromPrevious());
             return item;
-        }).toList());
+        }).toList();
+        com.tripfactory.nomad.api.dto.TripPlanOptionResponse option = new com.tripfactory.nomad.api.dto.TripPlanOptionResponse();
+        option.setType("Default");
+        option.setPlaces(planItems);
+        response.setPlans(java.util.Collections.singletonList(option));
 
         return ResponseEntity.ok(response);
     }

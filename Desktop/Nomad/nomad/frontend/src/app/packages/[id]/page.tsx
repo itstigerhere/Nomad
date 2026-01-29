@@ -1,6 +1,5 @@
-import React from "react";
-import { notFound } from "next/navigation";
 import dynamic from "next/dynamic";
+import { notFound } from "next/navigation";
 
 const EnrollButton = dynamic(() => import("@/components/EnrollButton"), { ssr: false });
 

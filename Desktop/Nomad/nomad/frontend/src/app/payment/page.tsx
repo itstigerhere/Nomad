@@ -1,11 +1,11 @@
 "use client";
 
 import ProtectedPage from "@/components/ProtectedPage";
+import { api } from "@/lib/api";
 import { createPayment, verifyPayment } from "@/lib/paymentApi";
 import { loadRazorpayScript, RazorpayHandlerResponse } from "@/lib/razorpay";
-import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { api } from "@/lib/api";
+import { useEffect, useState } from "react";
 
 export default function PaymentPage() {
   const [tripId, setTripId] = useState("");
@@ -27,18 +27,7 @@ export default function PaymentPage() {
   }, [searchParams]);
 
   // When trips are loaded, or tripId changes, prefill amount from any available field
-  useEffect(() => {
-    if (tripId && trips.length > 0) {
-      const t = trips.find(x => String(x.tripRequestId) === String(tripId) || String(x.id) === String(tripId));
-      if (t) {
-        if (typeof t.estimatedCost !== 'undefined') setAmount(String(t.estimatedCost));
-        else if (typeof t.amount !== 'undefined') setAmount(String(t.amount));
-        else if (typeof t.price !== 'undefined') setAmount(String(t.price));
-        else setAmount("");
-      }
-    }
-    // eslint-disable-next-line
-  }, [trips, tripId]);
+  // Removed automatic amount update on tripId/trips change to preserve prefilled amount from enroll flow
 
   useEffect(() => {
     let mounted = true;
@@ -140,10 +129,12 @@ export default function PaymentPage() {
                 setTripId(v);
                 const t = trips.find(x => String(x.tripRequestId) === v || String(x.id) === v);
                 if (t) {
-                  if (typeof t.estimatedCost !== 'undefined') setAmount(String(t.estimatedCost));
-                  else if (typeof t.amount !== 'undefined') setAmount(String(t.amount));
-                  else if (typeof t.price !== 'undefined') setAmount(String(t.price));
-                  else setAmount("");
+                  let amt = '';
+                  if (typeof t.estimatedCost !== 'undefined' && Number(t.estimatedCost) > 0) amt = String(t.estimatedCost);
+                  else if (typeof t.amount !== 'undefined' && Number(t.amount) > 0) amt = String(t.amount);
+                  else if (typeof t.price !== 'undefined' && Number(t.price) > 0) amt = String(t.price);
+                  else if (typeof t.packagePrice !== 'undefined' && Number(t.packagePrice) > 0) amt = String(t.packagePrice);
+                  setAmount(amt);
                 }
               }}
               className="border rounded-xl px-4 py-2"

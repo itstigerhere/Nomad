@@ -25,4 +25,5 @@ public class UserResponse {
     private TravelPreference travelPreference;
     private com.tripfactory.nomad.domain.enums.UserRole role;
     private LocalDateTime createdAt;
+    private String profilePhotoUrl;
 }

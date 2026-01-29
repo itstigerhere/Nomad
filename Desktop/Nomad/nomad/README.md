@@ -82,10 +82,8 @@ npm run dev
 
 ---
 
-## License
-MIT
+
 
 ---
 
-## Contact
-For any issues, open an issue on GitHub or contact the maintainer.
+![alt text](image.png)

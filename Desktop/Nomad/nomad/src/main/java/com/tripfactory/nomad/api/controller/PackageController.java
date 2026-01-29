@@ -1,6 +1,5 @@
 package com.tripfactory.nomad.api.controller;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
@@ -14,9 +13,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.tripfactory.nomad.api.dto.PackageDetailResponse;
+import com.tripfactory.nomad.api.dto.PackageEnrollRequest;
 import com.tripfactory.nomad.api.dto.PackageSummaryResponse;
 import com.tripfactory.nomad.api.dto.PaymentCreateRequest;
-import com.tripfactory.nomad.api.dto.PackageEnrollRequest;
 import com.tripfactory.nomad.api.dto.PaymentCreateResponse;
 import com.tripfactory.nomad.domain.entity.TripRequest;
 import com.tripfactory.nomad.domain.entity.User;
@@ -26,7 +25,6 @@ import com.tripfactory.nomad.service.PackageService;
 import com.tripfactory.nomad.service.PaymentService;
 
 import jakarta.validation.Valid;
-
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -73,6 +71,16 @@ public class PackageController {
         trip.setInterest(com.tripfactory.nomad.domain.enums.InterestType.NATURE);
         trip.setTravelMode(com.tripfactory.nomad.domain.enums.TravelMode.SOLO);
         trip.setPickupRequired(Boolean.FALSE);
+        // Set estimatedCost to package price
+        if (d.getPrice() != null) {
+            try {
+                trip.setEstimatedCost(d.getPrice().doubleValue());
+            } catch (Exception e) {
+                trip.setEstimatedCost(0.0);
+            }
+        } else {
+            trip.setEstimatedCost(0.0);
+        }
         trip = tripRequestRepository.save(trip);
 
         // delegate to payment service
