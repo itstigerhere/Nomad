@@ -9,9 +9,10 @@ type MapViewProps = {
   places?: PlaceNearby[];
   center?: [number, number];
   routeGeoJson?: string | null;
+  userLocation?: { latitude: number; longitude: number };
 };
 
-export default function MapView({ places = [], center, routeGeoJson }: MapViewProps) {
+export default function MapView({ places = [], center, routeGeoJson, userLocation }: MapViewProps) {
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstance = useRef<any>(null);
   const markerRefs = useRef<any[]>([]);
@@ -46,9 +47,24 @@ export default function MapView({ places = [], center, routeGeoJson }: MapViewPr
     markerRefs.current = [];
     setRouteError(null);
 
-    if (!places.length) return;
-
     const bounds = new mapboxgl.LngLatBounds();
+
+    // Render user location marker if provided
+    if (typeof userLocation?.latitude === "number" && typeof userLocation?.longitude === "number") {
+      const userMarker = new mapboxgl.Marker({ color: "#ef4444" }) // green
+        .setLngLat([userLocation.longitude, userLocation.latitude])
+        .setPopup(new mapboxgl.Popup().setHTML(`<strong>Your Start Location</strong>`))
+        .addTo(mapInstance.current as any);
+      markerRefs.current.push(userMarker);
+      bounds.extend([userLocation.longitude, userLocation.latitude]);
+    }
+
+    if (!places.length) {
+      if (bounds.isEmpty()) return;
+      mapInstance.current.fitBounds(bounds, { padding: 60, maxZoom: 13 });
+      return;
+    }
+
     places.forEach((place) => {
       const marker = new mapboxgl.Marker({ color: "#4f6cff" })
         .setLngLat([place.longitude, place.latitude])
@@ -59,7 +75,7 @@ export default function MapView({ places = [], center, routeGeoJson }: MapViewPr
     });
 
     mapInstance.current.fitBounds(bounds, { padding: 60, maxZoom: 13 });
-  }, [places]);
+  }, [places, userLocation]);
 
   useEffect(() => {
     const map = mapInstance.current;
@@ -108,46 +124,100 @@ export default function MapView({ places = [], center, routeGeoJson }: MapViewPr
       return;
     }
 
-    const coords = places.map((p) => `${p.longitude},${p.latitude}`).join(";");
-    const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${coords}?geometries=geojson&access_token=${mapToken}`;
+    let routePoints = places;
+    if (userLocation && typeof userLocation.latitude === "number" && typeof userLocation.longitude === "number") {
+      routePoints = [
+        {
+          id: -1,
+          name: "Start",
+          city: places[0]?.city || "",
+          latitude: userLocation.latitude,
+          longitude: userLocation.longitude,
+          category: "",
+          rating: 0,
+          distanceKm: 0,
+        },
+        ...places
+      ];
+    }
+    const coords = routePoints.map((p) => `${p.longitude},${p.latitude}`).join(";");
 
-    fetch(url)
+    // Try Mapbox Optimization API first
+    const optimizationUrl = `https://api.mapbox.com/optimized-trips/v1/mapbox/driving/${coords}?geometries=geojson&source=first&destination=last&roundtrip=false&access_token=${mapToken}`;
+
+    fetch(optimizationUrl)
       .then((res) => res.json())
       .then((data) => {
-        if (!data.routes?.length) {
-          setRouteError("No route found for selected places");
-          return;
+        if (data.trips && data.trips.length > 0) {
+          const route = data.trips[0].geometry;
+          if (map.getLayer("route-line")) {
+            map.removeLayer("route-line");
+          }
+          if (map.getSource("route")) {
+            map.removeSource("route");
+          }
+          map.addSource("route", {
+            type: "geojson",
+            data: {
+              type: "Feature",
+              geometry: route,
+            },
+          });
+          map.addLayer({
+            id: "route-line",
+            type: "line",
+            source: "route",
+            layout: {
+              "line-join": "round",
+              "line-cap": "round",
+            },
+            paint: {
+              "line-color": "#4f6cff",
+              "line-width": 4,
+            },
+          });
+          // (Distance markers removed)
+        } else {
+          // Fallback to Directions API if optimization fails
+          const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${coords}?geometries=geojson&access_token=${mapToken}`;
+          fetch(url)
+            .then((res) => res.json())
+            .then((data) => {
+              if (!data.routes?.length) {
+                setRouteError("No route found for selected places");
+                return;
+              }
+              const route = data.routes[0].geometry;
+              if (map.getLayer("route-line")) {
+                map.removeLayer("route-line");
+              }
+              if (map.getSource("route")) {
+                map.removeSource("route");
+              }
+              map.addSource("route", {
+                type: "geojson",
+                data: {
+                  type: "Feature",
+                  geometry: route,
+                },
+              });
+              map.addLayer({
+                id: "route-line",
+                type: "line",
+                source: "route",
+                layout: {
+                  "line-join": "round",
+                  "line-cap": "round",
+                },
+                paint: {
+                  "line-color": "#4f6cff",
+                  "line-width": 4,
+                },
+              });
+              // (Distance markers removed)
+            })
+            .catch(() => setRouteError("Failed to load route"));
         }
-        const route = data.routes[0].geometry;
-
-        if (map.getLayer("route-line")) {
-          map.removeLayer("route-line");
-        }
-        if (map.getSource("route")) {
-          map.removeSource("route");
-        }
-
-        map.addSource("route", {
-          type: "geojson",
-          data: {
-            type: "Feature",
-            geometry: route,
-          },
-        });
-
-        map.addLayer({
-          id: "route-line",
-          type: "line",
-          source: "route",
-          layout: {
-            "line-join": "round",
-            "line-cap": "round",
-          },
-          paint: {
-            "line-color": "#4f6cff",
-            "line-width": 4,
-          },
-        });
       })
       .catch(() => setRouteError("Failed to load route"));
   }, [places, mapToken, routeGeoJson]);

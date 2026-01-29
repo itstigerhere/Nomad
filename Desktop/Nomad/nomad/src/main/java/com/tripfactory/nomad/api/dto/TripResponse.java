@@ -24,5 +24,9 @@ public class TripResponse {
     private TripStatus status;
     private LocalDateTime createdAt;
     private BigDecimal estimatedCost;
-    private List<TripPlanItemResponse> plans;
+    // User's initial location for map marker
+    private Double userLatitude;
+    private Double userLongitude;
+    // Now returns a list of plan options
+    private List<TripPlanOptionResponse> plans;
 }

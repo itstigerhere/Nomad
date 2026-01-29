@@ -32,24 +32,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         String authHeader = request.getHeader("Authorization");
+        System.out.println("[JWT FILTER] Authorization header: " + authHeader);
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            System.out.println("[JWT FILTER] No Bearer token found");
             filterChain.doFilter(request, response);
             return;
         }
 
         String token = authHeader.substring(7);
+        System.out.println("[JWT FILTER] Token: " + token);
         if (!jwtService.isTokenValid(token)) {
+            System.out.println("[JWT FILTER] Invalid token");
             filterChain.doFilter(request, response);
             return;
         }
 
         String email = jwtService.extractSubject(token);
+        System.out.println("[JWT FILTER] Extracted email: " + email);
         if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = userDetailsService.loadUserByUsername(email);
             UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                     userDetails, null, userDetails.getAuthorities());
             authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(authToken);
+            System.out.println("[JWT FILTER] Authenticated user: " + userDetails.getUsername());
         }
 
         filterChain.doFilter(request, response);

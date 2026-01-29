@@ -60,9 +60,13 @@ public class TripRequest {
     @Column(nullable = false)
     private Boolean pickupRequired;
 
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private TripStatus status;
+
+    @Column
+    private Double estimatedCost;
 
     @Column(unique = true)
     private String shareToken;

@@ -63,6 +63,10 @@ public class User {
     @Column(nullable = false)
     private UserRole role;
 
+
+    @Column
+    private String profilePhotoUrl;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 

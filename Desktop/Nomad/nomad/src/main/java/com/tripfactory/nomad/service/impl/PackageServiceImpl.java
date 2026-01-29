@@ -6,8 +6,6 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
-import jakarta.annotation.PostConstruct;
-
 import org.springframework.stereotype.Service;
 
 import com.tripfactory.nomad.api.dto.PackageDetailResponse;
@@ -17,6 +15,7 @@ import com.tripfactory.nomad.domain.entity.Place;
 import com.tripfactory.nomad.repository.PlaceRepository;
 import com.tripfactory.nomad.service.PackageService;
 
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 
 @Service

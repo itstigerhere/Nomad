@@ -31,10 +31,10 @@ public class Place {
     @Column(nullable = false)
     private String city;
 
-    @Column(nullable = false)
+    @Column(name = "latitude", nullable = false)
     private Double latitude;
 
-    @Column(nullable = false)
+    @Column(name = "longitude", nullable = false)
     private Double longitude;
 
     @Enumerated(EnumType.STRING)

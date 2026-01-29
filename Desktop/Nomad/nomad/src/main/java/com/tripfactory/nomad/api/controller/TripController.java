@@ -6,9 +6,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
-
-import com.tripfactory.nomad.repository.UserRepository;
-import com.tripfactory.nomad.domain.entity.User;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -16,12 +13,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import jakarta.validation.Valid;
-
 import com.tripfactory.nomad.api.dto.TripCreateRequest;
 import com.tripfactory.nomad.api.dto.TripResponse;
+import com.tripfactory.nomad.domain.entity.User;
+import com.tripfactory.nomad.repository.UserRepository;
 import com.tripfactory.nomad.service.TripService;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -40,8 +38,13 @@ public class TripController {
     @GetMapping("/me")
     public ResponseEntity<List<TripResponse>> getMyTrips() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        System.out.println("[TRIP CONTROLLER] Authenticated user: " + email);
         User user = userRepository.findByEmail(email).orElse(null);
-        if (user == null) return ResponseEntity.status(401).build();
+        if (user == null) {
+            System.out.println("[TRIP CONTROLLER] User not found for email: " + email);
+            return ResponseEntity.status(401).build();
+        }
+        System.out.println("[TRIP CONTROLLER] Found user ID: " + user.getId());
         return ResponseEntity.ok(tripService.getTripsByUser(user.getId()));
     }
 
