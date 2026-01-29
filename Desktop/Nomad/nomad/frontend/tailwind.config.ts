@@ -1,19 +1,26 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-  content: ["./src/**/*.{ts,tsx}"],
+  content: ["./src/**/*.{ts,tsx}"] ,
   theme: {
     extend: {
       colors: {
-        /* Single-theme tokens mapped to CSS variables */
-        bg: "var(--color-bg)",
-        text: "var(--color-text)",
-        brand: "var(--color-brand)",
-        border: "var(--color-border)",
-      },
-    },
+        brand: {
+          50: "#f5f7ff",
+          100: "#eef2ff",
+          200: "#dfe7ff",
+          300: "#c1d0ff",
+          400: "#9bb1ff",
+          500: "#6f8cff",
+          600: "#4f6cff",
+          700: "#3d55f0",
+          800: "#2f41c2",
+          900: "#26379a"
+        }
+      }
+    }
   },
-  plugins: [],
+  plugins: []
 };
 
 export default config;

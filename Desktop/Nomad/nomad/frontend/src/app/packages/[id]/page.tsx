@@ -15,56 +15,41 @@ export default async function PackageDetailPage({ params }: { params: { id: stri
   const pkg = await fetchPackage(params.id);
   if (!pkg) return notFound();
 
-return (
-  <div className="section py-10 sm:py-12">
-    <div className="grid gap-6 lg:grid-cols-3">
-      {/* Main */}
-      <div className="lg:col-span-2">
-        <h1 className="text-2xl sm:text-3xl font-bold">{pkg.name}</h1>
-        <p className="mt-2 text-sm sm:text-base opacity-70">
-          {pkg.description}
-        </p>
-
-        <div className="mt-6 space-y-4">
-          <h3 className="text-lg sm:text-xl font-semibold">
-            Places in this package
-          </h3>
-
-          {pkg.places.map((place: any) => (
-            <div key={place.id} className="card p-4">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h4 className="font-semibold">{place.name}</h4>
-                  <p className="text-sm opacity-60">
-                    {place.city} · Rating: {place.rating ?? "N/A"}
-                  </p>
+  return (
+    <div className="section py-12">
+      <div className="grid md:grid-cols-3 gap-6">
+        <div className="col-span-2">
+          <h1 className="text-3xl font-bold">{pkg.name}</h1>
+          <p className="text-slate-600 mt-2">{pkg.description}</p>
+          <div className="mt-6 space-y-4">
+            <h3 className="text-xl font-semibold">Places in this package</h3>
+            {pkg.places.map((place: any) => (
+              <div key={place.id} className="card p-4 mb-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-semibold">{place.name}</h4>
+                    <div className="text-sm text-slate-500">{place.city} • Rating: {place.rating ?? 'N/A'}</div>
+                  </div>
                 </div>
+                <p className="text-sm mt-2">Activities: Visit, Explore local cuisine, Photo stops</p>
               </div>
-              <p className="mt-2 text-sm opacity-70">
-                Activities: Visit, Explore local cuisine, Photo stops
-              </p>
+            ))}
+          </div>
+        </div>
+        <aside className="space-y-4">
+          <div className="card p-4">
+            <div className="text-2xl font-bold">₹{pkg.price}</div>
+            {/* EnrollButton will POST to enroll and redirect to payment */}
+            <div className="mt-4">
+              <EnrollButton packageId={pkg.id} amount={pkg.price} />
             </div>
-          ))}
-        </div>
+          </div>
+          <div className="card p-4">
+            <h4 className="font-semibold">Average Rating</h4>
+            <div className="text-xl">{pkg.averageRating?.toFixed(1) ?? 'N/A'}</div>
+          </div>
+        </aside>
       </div>
-
-      {/* Sidebar */}
-      <aside className="space-y-4">
-        <div className="card p-5">
-          <div className="text-2xl font-bold">₹{pkg.price}</div>
-          <div className="mt-4">
-            <EnrollButton packageId={pkg.id} amount={pkg.price} />
-          </div>
-        </div>
-
-        <div className="card p-5">
-          <h4 className="font-semibold">Average Rating</h4>
-          <div className="text-xl mt-1">
-            {pkg.averageRating?.toFixed(1) ?? "N/A"}
-          </div>
-        </div>
-      </aside>
     </div>
-  </div>
-);
+  );
 }

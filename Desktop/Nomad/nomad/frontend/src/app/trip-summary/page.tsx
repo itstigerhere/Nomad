@@ -43,105 +43,67 @@ export default function TripSummaryPage() {
 
   return (
     <ProtectedPage>
-      <div className="section py-10 sm:py-12 space-y-6">
-        <div className="card p-6 space-y-5">
-          <h2 className="text-2xl font-bold">Trip Summary</h2>
-
-          {/* Fetch */}
-          <div className="flex flex-wrap gap-3">
-            <input
-              value={tripId}
-              onChange={(e) => setTripId(e.target.value)}
-              placeholder="Trip Request ID"
-              className="rounded-xl px-4 py-2 border flex-1 min-w-[220px]"
-              style={{ borderColor: "var(--color-border)" }}
-            />
-            <button className="btn-primary" onClick={loadTrip}>
-              Fetch
-            </button>
-          </div>
-
-          {summary && (
-            <div className="space-y-6">
-              {/* Summary card */}
-              <div
-                className="rounded-xl p-4 border space-y-1"
-                style={{
-                  borderColor: "var(--color-border)",
-                  backgroundColor: "rgba(28,28,30,0.03)",
-                }}
-              >
-                <p className="text-sm opacity-60">Trip ID</p>
-                <p className="font-semibold">{summary.tripRequestId}</p>
-
-                <p className="text-sm opacity-60 mt-2">Status</p>
-                <p className="font-semibold">{summary.status}</p>
-
-                <p className="text-sm opacity-60 mt-2">Estimated Cost</p>
-                <p className="font-semibold">₹ {summary.estimatedCost}</p>
-
-                {summary.shareToken && (
-                  <div className="pt-3">
-                    <p className="text-sm opacity-60">Share Link</p>
-                    <a
-                      href={`/share/${summary.shareToken}`}
-                      className="text-sm underline"
-                      style={{ color: "var(--color-brand)" }}
-                    >
-                      /share/{summary.shareToken}
-                    </a>
-                  </div>
-                )}
-              </div>
-
-              {/* Route */}
-              <div className="card p-4 space-y-4">
-                <div className="flex flex-wrap items-center gap-3">
-                  <select
-                    value={dayNumber}
-                    onChange={(e) => setDayNumber(e.target.value)}
-                    className="rounded-xl px-4 py-2 border"
-                    style={{ borderColor: "var(--color-border)" }}
+      <div className="section py-12 space-y-6">
+        <div className="card p-6 space-y-4">
+        <h2 className="text-2xl font-bold">Trip Summary</h2>
+        <div className="flex gap-3">
+          <input
+            value={tripId}
+            onChange={(e) => setTripId(e.target.value)}
+            placeholder="Trip Request ID"
+            className="border rounded-xl px-4 py-2"
+          />
+          <button className="btn-primary" onClick={loadTrip}>Fetch</button>
+        </div>
+        {summary && (
+          <div className="space-y-4">
+            <div className="card p-4 bg-slate-50">
+              <p className="text-sm text-slate-600">Trip ID</p>
+              <p className="font-semibold">{summary.tripRequestId}</p>
+              <p className="text-sm text-slate-600">Status</p>
+              <p className="font-semibold">{summary.status}</p>
+              <p className="text-sm text-slate-600">Estimated Cost</p>
+              <p className="font-semibold">₹ {summary.estimatedCost}</p>
+              {summary.shareToken && (
+                <div className="pt-2">
+                  <p className="text-sm text-slate-600">Share Link</p>
+                  <a
+                    className="text-sm text-brand-700 underline"
+                    href={`/share/${summary.shareToken}`}
                   >
-                    {dayOptions.map((day: number) => (
-                      <option key={day} value={day}>
-                        Day {day}
-                      </option>
-                    ))}
-                  </select>
-
-                  <button className="btn-primary" onClick={loadRoute}>
-                    Load Route
-                  </button>
+                    /share/{summary.shareToken}
+                  </a>
                 </div>
-
-                {routeError && (
-                  <p className="text-sm text-[rgb(220,38,38)]">
-                    {routeError}
-                  </p>
-                )}
-
-                <MapView routeGeoJson={routeGeoJson} />
-              </div>
-
-              {/* Plans */}
-              <div className="grid gap-3">
-                {summary.plans?.map((plan: any, index: number) => (
-                  <div key={`${plan.placeId}-${index}`} className="card p-4">
-                    <p className="font-semibold">
-                      Day {plan.dayNumber} · {plan.placeName}
-                    </p>
-                    <p className="text-sm opacity-70">
-                      {plan.startTime} – {plan.endTime}
-                    </p>
-                  </div>
-                ))}
-              </div>
+              )}
             </div>
-          )}
+            <div className="card p-4 space-y-3">
+              <div className="flex items-center gap-3">
+                <select
+                  value={dayNumber}
+                  onChange={(e) => setDayNumber(e.target.value)}
+                  className="border rounded-xl px-4 py-2"
+                >
+                  {dayOptions.map((day: number) => (
+                    <option key={day} value={day}>Day {day}</option>
+                  ))}
+                </select>
+                <button className="btn-primary" onClick={loadRoute}>Load Route</button>
+              </div>
+              {routeError && <p className="text-sm text-red-600">{routeError}</p>}
+              <MapView routeGeoJson={routeGeoJson} />
+            </div>
+            <div className="grid gap-3">
+              {summary.plans?.map((plan: any, index: number) => (
+                <div key={`${plan.placeId}-${index}`} className="card p-4">
+                  <p className="font-semibold">Day {plan.dayNumber} - {plan.placeName}</p>
+                  <p className="text-sm text-slate-600">{plan.startTime} - {plan.endTime}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         </div>
       </div>
     </ProtectedPage>
   );
-
 }

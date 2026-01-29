@@ -1,49 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "../lib/api";
 
-type Props = {
-  packageId: number | string;
-  amount: number | string;
-};
+type Props = { packageId: number | string; amount: number | string };
 
 export default function EnrollButton({ packageId, amount }: Props) {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleEnroll = async () => {
-    if (loading) return;
-
+  async function handleEnroll() {
     setLoading(true);
     try {
-      const { data } = await api.post(
-        `/api/packages/${packageId}/enroll`,
-        { amount: Number(amount) }
-      );
-
-      router.push(
-        `/payment?prefillAmount=${data.amount}&tripRequestId=${data.tripRequestId}`
-      );
-    } catch (e: any) {
-      const message =
-        e?.response?.data
-          ? JSON.stringify(e.response.data)
-          : e?.message || "unknown error";
-      alert(`Enroll failed: ${message}`);
-    } finally {
+      const { data } = await api.post(`/api/packages/${packageId}/enroll`, { amount: Number(amount) });
+      // redirect to payment page with tripRequestId and amount
+      router.push(`/payment?prefillAmount=${data.amount}&tripRequestId=${data.tripRequestId}`);
       setLoading(false);
+      return;
+    } catch (e: any) {
+      if (e?.response?.data) {
+        alert('Enroll failed: ' + JSON.stringify(e.response.data));
+      } else {
+        alert('Enroll failed: ' + (e?.message || 'unknown error'));
+      }
+      setLoading(false);
+      return;
     }
-  };
+  }
 
   return (
-    <button
-      onClick={handleEnroll}
-      disabled={loading}
-      className="btn-primary w-full disabled:opacity-60 disabled:cursor-not-allowed"
-    >
-      {loading ? "Enrolling…" : "Enroll & Pay"}
+    <button onClick={handleEnroll} className="btn-primary w-full" disabled={loading}>
+      {loading ? 'Enrolling…' : 'Enroll & Pay'}
     </button>
   );
 }
