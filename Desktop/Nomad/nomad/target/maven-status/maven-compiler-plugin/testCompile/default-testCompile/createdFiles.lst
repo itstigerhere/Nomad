@@ -1,5 +1,0 @@
-com\tripfactory\nomad\NomadApplicationTests.class
-com\tripfactory\nomad\service\impl\TripGroupServiceImplTest.class
-com\tripfactory\nomad\service\impl\TravelAssistanceServiceImplTest.class
-com\tripfactory\nomad\api\controller\TripControllerTest.class
-com\tripfactory\nomad\api\controller\AuthControllerTest.class

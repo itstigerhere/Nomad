@@ -1,16 +1,43 @@
 # Node / Next.js
 node_modules/
 .next/
+frontend/.next/
+frontend/node_modules/
+
+# Build outputs
+target/
+build/
+dist/
+out/
 
 # Logs
 logs/
 *.log
 *.gz
 
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# User-specific files
+profile-photos/
+cookies.txt
+*.jpg
+*.png
+image.png
+
 # IDE
 .vscode/
 .idea/
+*.iml
+*.iws
 
 # OS
 .DS_Store
 Thumbs.db
+
+# Package manager
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
