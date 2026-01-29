@@ -87,21 +87,26 @@ export default function Header() {
           {/* Navigation */}
           <nav className="flex items-center gap-4">
             <Link href="/" className={linkClass}>Home</Link>
-            <Link href="/trip-planner" className={linkClass}>Planner</Link>
-            <Link href="/map" className={linkClass}>Map</Link>
-            <Link href="/route-view" className={linkClass}>Route</Link>
-            <Link href="/trip-summary" className={linkClass}>Summary</Link>
-            <Link href="/payment" className={linkClass}>Payment</Link>
+            <Link href="/packages" className={linkClass}>Packages</Link>
+            <Link href="/map" className={linkClass}>Explore Map</Link>
+            {user && (
+              <>
+                <Link href="/trip-planner" className={linkClass}>Trip Planner</Link>
+                <Link href="/trips" className={linkClass}>My Trips</Link>
+              </>
+            )}
 
             {user?.role === "ADMIN" && (
               <>
-                <Link href="/admin" className={linkClass}>Admin</Link>
+                <Link href="/admin" className={linkClass}>Dashboard</Link>
                 <Link href="/group-status" className={linkClass}>Groups</Link>
               </>
             )}
 
             {!user && (
-              <Link href="/auth" className={linkClass}>Auth</Link>
+              <Link href="/auth" className="px-4 py-2 rounded-xl bg-[var(--color-brand)] text-white font-semibold hover:opacity-90 transition-all shadow-md hover:shadow-lg">
+                Login / Register
+              </Link>
             )}
 
             <button 

@@ -3,32 +3,57 @@
 import { api } from "@/lib/api";
 import { useEffect, useState } from "react";
 import PlaceCard from "./PlaceCard";
+import { useTourCart } from "@/context/TourCartContext";
 
 export default function PlacesList() {
   const [places, setPlaces] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [debugInfo, setDebugInfo] = useState<any>(null);
+  const { addToCart } = useTourCart();
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       setLoading(true);
       try {
-        // Determine user coords (geolocation -> localStorage -> fallback)
+        // Determine user coords (backend -> localStorage -> geolocation -> fallback)
         let latitude: number | null = null;
         let longitude: number | null = null;
         let city: string | null = null;
 
         try {
-          const raw = localStorage.getItem("nomad_location");
-          if (raw) {
-            const loc = JSON.parse(raw);
-            if (loc.latitude) latitude = Number(loc.latitude);
-            if (loc.longitude) longitude = Number(loc.longitude);
-            if (loc.city) city = loc.city;
+          // First try to get user location from backend (most up-to-date)
+          const token = localStorage.getItem("nomad_token");
+          if (token) {
+            try {
+              const userRes = await api.get("/api/users/me");
+              if (userRes.data) {
+                latitude = userRes.data.latitude;
+                longitude = userRes.data.longitude;
+                city = userRes.data.city;
+                // Update localStorage with fresh data from backend
+                if (latitude && longitude) {
+                  localStorage.setItem("nomad_location", JSON.stringify({ city, latitude, longitude }));
+                }
+              }
+            } catch (e) {
+              console.warn("Could not fetch user location from backend:", e);
+            }
           }
 
+          // If backend didn't provide location, try localStorage
+          if (!latitude || !longitude) {
+            const raw = localStorage.getItem("nomad_location");
+            if (raw) {
+              const loc = JSON.parse(raw);
+              if (loc.latitude) latitude = Number(loc.latitude);
+              if (loc.longitude) longitude = Number(loc.longitude);
+              if (loc.city) city = loc.city;
+            }
+          }
+
+          // If still no location, try browser geolocation
           if ((!latitude || !longitude) && typeof navigator !== "undefined" && navigator.geolocation) {
             const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
               navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 7000 });
@@ -42,34 +67,36 @@ export default function PlacesList() {
           // ignore geolocation/localStorage errors
         }
 
-        // fallback coordinates (Bengaluru) if nothing available
+        // fallback coordinates (Delhi) if nothing available
         if (!latitude || !longitude) {
-          latitude = 12.9716;
-          longitude = 77.5946;
+          latitude = 28.6139;
+          longitude = 77.2090;
+          city = "Delhi";
         }
 
-        // Try reverse-geocoding on the client (Mapbox) to get a consistent city for the coords.
-        async function reverseGeocode(lat: number, lon: number): Promise<string | null> {
-          try {
-            const token = (
-              process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN ||
-              process.env.NEXT_PUBLIC_MAPBOX_TOKEN ||
-              (window as any).__NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN ||
-              (window as any).__NEXT_PUBLIC_MAPBOX_TOKEN
-            ) as string | undefined;
-            if (!token) return null;
-            const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lon},${lat}.json?types=place&limit=1&access_token=${token}`;
-            const r = await fetch(url);
-            if (!r.ok) return null;
-            const j = await r.json();
-            return j.features?.[0]?.text ?? null;
-          } catch (err) {
-            return null;
-          }
-        }
+        // Normalize city names to match backend database
+        const normalizeCityName = (cityName: string | null): string | null => {
+          if (!cityName) return null;
+          const normalized = cityName.trim();
+          // Map common variations to standard names used in backend
+          const cityMap: Record<string, string> = {
+            "New Delhi": "Delhi",
+            "delhi": "Delhi",
+            "new delhi": "Delhi",
+            "Bengaluru": "Bengaluru",
+            "Bangalore": "Bengaluru",
+            "bangalore": "Bengaluru",
+            "bengaluru": "Bengaluru",
+            "Mumbai": "Mumbai",
+            "mumbai": "Mumbai",
+            "Bombay": "Mumbai",
+            "bombay": "Mumbai",
+          };
+          return cityMap[normalized] || normalized;
+        };
 
-        const resolvedCity = await reverseGeocode(latitude, longitude);
-        if (resolvedCity) city = resolvedCity;
+        // Normalize the city name to match backend database expectations
+        city = normalizeCityName(city);
 
         // persist the chosen location for future requests
         try {
@@ -101,20 +128,17 @@ export default function PlacesList() {
   }, []);
 
   function handleAdd(place: any) {
-    try {
-      const raw = localStorage.getItem("nomad_tour");
-      const arr = raw ? JSON.parse(raw) : [];
-      if (!arr.find((p: any) => p.id === place.id)) {
-        arr.push({ id: place.id, name: place.name });
-        localStorage.setItem("nomad_tour", JSON.stringify(arr));
-        alert(`${place.name} added to your tour`);
-      } else {
-        alert(`${place.name} already in your tour`);
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Unable to add to tour");
-    }
+    addToCart({
+      id: place.id,
+      name: place.name,
+      city: place.city,
+      category: place.category,
+      imageUrl: place.imageUrl,
+      latitude: place.latitude,
+      longitude: place.longitude,
+      rating: place.rating,
+      distanceKm: place.distanceKm,
+    });
   }
 
   if (loading) return <div>Loading nearby places…</div>;

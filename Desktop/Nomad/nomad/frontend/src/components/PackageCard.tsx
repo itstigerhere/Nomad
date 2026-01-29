@@ -14,6 +14,15 @@ export default function PackageCard({ pkg }: Props) {
   const [loading, setLoading] = useState(false);
 
   async function handleEnroll() {
+    // Check if user is logged in
+    const token = typeof window !== "undefined" ? localStorage.getItem("nomad_token") : null;
+    if (!token) {
+      if (confirm("You need to login to enroll in this package. Would you like to login now?")) {
+        router.push("/auth");
+      }
+      return;
+    }
+
     setLoading(true);
     try {
       const { data } = await api.post(`/api/packages/${pkg.id}/enroll`, { amount: Number(pkg.price) });
@@ -21,11 +30,8 @@ export default function PackageCard({ pkg }: Props) {
       setLoading(false);
       return;
     } catch (e: any) {
-      if (e?.response?.data) {
-        alert('Enroll failed: ' + JSON.stringify(e.response.data));
-      } else {
-        alert('Enroll failed: ' + (e?.message || 'unknown error'));
-      }
+      const errorMsg = e?.response?.data?.message || e?.message || 'Unknown error occurred';
+      alert('Enrollment failed: ' + errorMsg);
       setLoading(false);
       return;
     }

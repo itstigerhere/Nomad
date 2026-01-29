@@ -44,9 +44,23 @@ public class PackageServiceImpl implements PackageService {
         s.setName(name);
         s.setShortDescription(desc);
         s.setPrice(price);
-        // Places do not currently have an image field; leave imageUrl null for now
-        s.setImageUrl(null);
+        s.setImageUrl(resolvePackageImage(name));
         return s;
+    }
+
+    private String resolvePackageImage(String packageName) {
+        String nameLower = packageName.toLowerCase();
+        
+        if (nameLower.contains("bengaluru") || nameLower.contains("bangalore")) {
+            return "/blr.jpeg";
+        } else if (nameLower.contains("mumbai") || nameLower.contains("bombay")) {
+            return "/mum.jpeg";
+        } else if (nameLower.contains("delhi")) {
+            return "/del.jpeg";
+        }
+        
+        // Default fallback
+        return "/street.jpeg";
     }
 
     @Override

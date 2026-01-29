@@ -12,4 +12,6 @@ public interface TripService {
     TripResponse getTrip(Long tripRequestId);
 
     List<TripResponse> getTripsByUser(Long userId);
+
+    void deleteTrip(Long tripRequestId);
 }

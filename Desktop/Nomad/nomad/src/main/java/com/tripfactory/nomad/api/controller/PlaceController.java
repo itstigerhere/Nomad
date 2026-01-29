@@ -4,11 +4,13 @@ import java.util.List;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.tripfactory.nomad.api.dto.PlaceNearbyResponse;
+import com.tripfactory.nomad.domain.entity.Place;
 import com.tripfactory.nomad.domain.enums.InterestType;
 import com.tripfactory.nomad.service.PlaceService;
 
@@ -30,5 +32,12 @@ public class PlaceController {
             @RequestParam(defaultValue = "15") double radiusKm,
             @RequestParam(defaultValue = "20") int limit) {
         return ResponseEntity.ok(placeService.getNearbyPlaces(city, latitude, longitude, interest, radiusKm, limit));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Place> getPlaceById(@PathVariable Long id) {
+        return placeService.getPlaceById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 }

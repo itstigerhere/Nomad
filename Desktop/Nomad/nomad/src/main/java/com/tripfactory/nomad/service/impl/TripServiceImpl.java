@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -96,68 +97,65 @@ public class TripServiceImpl implements TripService {
         int dayCount = savedRequest.getWeekendType() == WeekendType.TWO_DAY ? 2 : 1;
         int perDay = (int) Math.ceil((double) totalSlots / dayCount);
 
+        // Filter places based on user's selected interest
+        List<Place> userInterestPlaces = places.stream()
+                .filter(p -> p.getCategory() == savedRequest.getInterest())
+                .collect(Collectors.toList());
 
-        // Collect all TripPlans to persist
-        List<TripPlan> allPlansToSave = new ArrayList<>();
-        List<com.tripfactory.nomad.api.dto.TripPlanOptionResponse> planOptions = new ArrayList<>();
-        for (com.tripfactory.nomad.domain.enums.InterestType type : com.tripfactory.nomad.domain.enums.InterestType.values()) {
-            List<Place> filtered = places.stream().filter(p -> p.getCategory() == type).collect(Collectors.toList());
-            if (!filtered.isEmpty()) {
-                List<Place> ranked = rankPlaces(filtered, userLat, userLon, type);
-                List<TripPlan> plan = buildPlans(savedRequest, ranked, totalSlots, perDay);
-                if (!plan.isEmpty()) {
-                    allPlansToSave.addAll(plan);
-                }
-                planOptions.add(toPlanOptionResponse(type.name() + " Only", plan));
-            }
+        if (userInterestPlaces.isEmpty()) {
+            throw new BadRequestException("No places found for the selected interest: " + savedRequest.getInterest());
         }
 
-        // Generate a hybrid plan (mix of interests)
-        List<Place> hybrid = new ArrayList<>();
-        int perInterest = Math.max(1, totalSlots / com.tripfactory.nomad.domain.enums.InterestType.values().length);
-        for (com.tripfactory.nomad.domain.enums.InterestType type : com.tripfactory.nomad.domain.enums.InterestType.values()) {
-            List<Place> filtered = places.stream().filter(p -> p.getCategory() == type).limit(perInterest).collect(Collectors.toList());
-            hybrid.addAll(filtered);
-        }
-        if (!hybrid.isEmpty()) {
-            List<Place> rankedHybrid = rankPlaces(hybrid, userLat, userLon, null);
-            List<TripPlan> hybridPlan = buildPlans(savedRequest, rankedHybrid, totalSlots, perDay);
-            if (!hybridPlan.isEmpty()) {
-                allPlansToSave.addAll(hybridPlan);
-            }
-            planOptions.add(toPlanOptionResponse("Hybrid", hybridPlan));
-        }
-
-        // Persist all TripPlans to the database
-        // Debug print after all variables are declared and populated
-        System.out.println("[DEBUG] Creating trip for city: " + city);
-        System.out.println("[DEBUG] Places found for city: " + places.size());
-        System.out.println("[DEBUG] Total plans to save: " + allPlansToSave.size());
-        for (TripPlan plan : allPlansToSave) {
-            System.out.println("[DEBUG] Plan: day=" + plan.getDayNumber() + ", place=" + plan.getPlace().getName() + ", tripRequestId=" + plan.getTripRequest().getId());
-        }
-        if (!allPlansToSave.isEmpty()) {
-            tripPlanRepository.saveAll(allPlansToSave);
+        // Generate and SAVE ONLY the user's selected interest plan to database
+        List<Place> ranked = rankPlaces(userInterestPlaces, userLat, userLon, savedRequest.getInterest());
+        List<TripPlan> primaryPlan = buildPlans(savedRequest, ranked, totalSlots, perDay);
+        
+        // Persist ONLY the primary plan to database
+        if (!primaryPlan.isEmpty()) {
+            tripPlanRepository.saveAll(primaryPlan);
         }
 
         savedRequest.setStatus(TripStatus.PLANNED);
         TripRequest updated = tripRequestRepository.save(savedRequest);
 
-        // Re-fetch TripPlans from the database to ensure attached entities
-        List<TripPlan> attachedPlans = tripPlanRepository.findByTripRequestIdOrderByDayNumberAscStartTimeAsc(updated.getId());
+        // Re-fetch the saved primary plan
+        List<TripPlan> savedPrimaryPlan = tripPlanRepository.findByTripRequestIdOrderByDayNumberAscStartTimeAsc(updated.getId());
 
-        // Build plan options from attached entities
-        List<com.tripfactory.nomad.api.dto.TripPlanOptionResponse> attachedPlanOptions = new ArrayList<>();
-        for (com.tripfactory.nomad.domain.enums.InterestType type : com.tripfactory.nomad.domain.enums.InterestType.values()) {
-            List<TripPlan> filteredPlans = attachedPlans.stream()
-                .filter(plan -> plan.getPlace().getCategory() == type)
-                .collect(Collectors.toList());
-            if (!filteredPlans.isEmpty()) {
-                attachedPlanOptions.add(toPlanOptionResponse(type.name() + " Only", filteredPlans));
+        // Build response with plan options (only generate others for display, don't save)
+        List<com.tripfactory.nomad.api.dto.TripPlanOptionResponse> planOptions = new ArrayList<>();
+        
+        // Add the primary saved plan first
+        planOptions.add(toPlanOptionResponse(updated.getInterest().name() + " Focused", savedPrimaryPlan));
+        
+        // Generate alternative plans dynamically (NOT saved to DB) for variety
+        Set<com.tripfactory.nomad.domain.enums.InterestType> categoriesAvailable = places.stream()
+                .map(Place::getCategory)
+                .collect(Collectors.toSet());
+        
+        // Only add mixed option if there are other categories available
+        if (categoriesAvailable.size() > 1) {
+            List<Place> mixed = new ArrayList<>();
+            int primarySlots = totalSlots / 2;
+            mixed.addAll(ranked.stream().limit(primarySlots).collect(Collectors.toList()));
+            
+            int remainingSlots = totalSlots - primarySlots;
+            int perOther = Math.max(1, remainingSlots / (categoriesAvailable.size() - 1));
+            
+            for (com.tripfactory.nomad.domain.enums.InterestType type : categoriesAvailable) {
+                if (type != savedRequest.getInterest()) {
+                    places.stream()
+                        .filter(p -> p.getCategory() == type)
+                        .limit(perOther)
+                        .forEach(mixed::add);
+                }
+            }
+            
+            if (!mixed.isEmpty() && mixed.size() <= totalSlots) {
+                List<Place> rankedMixed = rankPlaces(mixed, userLat, userLon, savedRequest.getInterest());
+                List<TripPlan> mixedPlan = buildPlans(savedRequest, rankedMixed, Math.min(mixed.size(), totalSlots), perDay);
+                planOptions.add(toPlanOptionResponse("Mixed Experience", mixedPlan));
             }
         }
-        // Hybrid option
-        attachedPlanOptions.add(toPlanOptionResponse("Hybrid", attachedPlans));
 
         TripResponse response = new TripResponse();
         response.setTripRequestId(updated.getId());
@@ -170,7 +168,7 @@ public class TripServiceImpl implements TripService {
         }
         response.setStatus(updated.getStatus());
         response.setCreatedAt(updated.getCreatedAt());
-        response.setPlans(attachedPlanOptions);
+        response.setPlans(planOptions);
         response.setEstimatedCost(estimateCost(totalSlots, Boolean.TRUE.equals(request.getPickupRequired())));
 
         notificationService.sendEmail(user.getEmail(), "NOMAD Trip Planned",
@@ -374,5 +372,18 @@ public class TripServiceImpl implements TripService {
             group.setStatus(GroupStatus.READY);
         }
         return tripGroupRepository.save(group);
+    }
+
+    @Override
+    @Transactional
+    public void deleteTrip(Long tripRequestId) {
+        TripRequest tripRequest = tripRequestRepository.findById(tripRequestId)
+                .orElseThrow(() -> new ResourceNotFoundException("Trip not found"));
+        
+        // Delete associated trip plans first
+        tripPlanRepository.deleteByTripRequest(tripRequest);
+        
+        // Then delete the trip request
+        tripRequestRepository.delete(tripRequest);
     }
 }

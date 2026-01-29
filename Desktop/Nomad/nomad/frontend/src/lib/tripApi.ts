@@ -21,3 +21,13 @@ export async function fetchTrip(tripId: number) {
   const { data } = await api.get(`/api/trips/${tripId}`);
   return data;
 }
+
+export async function deleteTrip(tripId: number) {
+  const { data } = await api.delete(`/api/trips/${tripId}`);
+  return data;
+}
+
+export async function fetchMyTrips() {
+  const { data } = await api.get('/api/trips/me');
+  return data;
+}
