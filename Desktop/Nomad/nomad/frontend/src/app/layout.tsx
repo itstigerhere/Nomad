@@ -1,8 +1,15 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
+import dynamic from "next/dynamic";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import Hero from "@/components/Hero";
+import PackageCard from "@/components/PackageCard";
+
+const PlacesList = dynamic(() => import("@/components/PlacesList"), {
+  ssr: false,
+});
 
 export const metadata: Metadata = {
   title: "NOMADS",
@@ -10,20 +17,98 @@ export const metadata: Metadata = {
     "Plan weekend city trips with smart recommendations, assistance, and payments.",
 };
 
-export default function RootLayout({
+async function fetchHomepagePackages() {
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/packages/homepage`,
+    { cache: "no-store" }
+  );
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const packages = await fetchHomepagePackages();
+
   return (
     <html lang="en">
       <body className="bg-[var(--color-bg)] text-[var(--color-text)] antialiased">
         <div className="min-h-screen flex flex-col">
-          {/* Global header (transparent, hero-aware) */}
+          {/* Global header (absolute, hero-aware) */}
           <Header />
 
-          {/* Page content (Hero handles its own top spacing) */}
-          <main className="flex-1">{children}</main>
+          {/* Main content */}
+          <main className="flex-1">
+            {/* HERO */}
+            <Hero />
+
+            {/* Nearby places */}
+            <section className="section pb-14">
+              <div className="mb-6">
+                <h3 className="text-2xl font-semibold">
+                  Nearby Attractions
+                </h3>
+                <p className="text-sm opacity-70">
+                  Places near you — explore and add to your tour.
+                </p>
+              </div>
+              <PlacesList />
+            </section>
+
+            {/* Packages */}
+            <section className="section pb-16">
+              <div className="mb-6">
+                <h3 className="text-2xl font-semibold">
+                  Featured Weekend Packages
+                </h3>
+                <p className="text-sm opacity-70">
+                  Choose a curated weekend package and enroll instantly.
+                </p>
+              </div>
+
+              <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3">
+                {packages.map((p: any) => (
+                  <PackageCard key={p.id} pkg={p} />
+                ))}
+
+                {[
+                  {
+                    title: "Personalized Plans",
+                    desc: "Interest-based place selection and optimized routing.",
+                  },
+                  {
+                    title: "Travel Assistance",
+                    desc: "Pickup, vehicles, and driver allocation based on group size.",
+                  },
+                  {
+                    title: "Secure Payments",
+                    desc: "Integrated payments with instant confirmation.",
+                  },
+                ].map((feature) => (
+                  <div key={feature.title} className="card p-6">
+                    <h4 className="text-lg font-semibold">
+                      {feature.title}
+                    </h4>
+                    <p className="mt-2 text-sm opacity-70">
+                      {feature.desc}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-6 text-right">
+                <a href="/packages" className="btn-outline">
+                  Explore more packages
+                </a>
+              </div>
+            </section>
+
+            {/* Any routed children (optional future pages) */}
+            {children}
+          </main>
 
           {/* Global footer */}
           <Footer />

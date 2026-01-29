@@ -9,11 +9,18 @@
    ========================= */
 :root {
   color-scheme: light;
-
   --color-bg: #f9fafb;
   --color-text: #1c1c1e;
   --color-brand: #61c2a2;
   --color-border: rgba(28, 28, 30, 0.08);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --color-bg: #1c1c1e;
+  --color-text: #f9fafb;
+  --color-brand: #61c2a2;
+  --color-border: rgba(249, 250, 251, 0.12);
 }
 
 /* =========================

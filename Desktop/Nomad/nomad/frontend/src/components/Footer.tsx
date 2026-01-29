@@ -1,36 +1,23 @@
 "use client";
 
-import Link from "next/link";
-
 export default function Footer() {
   return (
-    <footer className="mt-20">
-      {/* Soft separator */}
+    <footer className="mt-20" style={{ backgroundColor: "var(--color-bg)" }}>
       <div
         className="h-px w-full"
         style={{ backgroundColor: "var(--color-border)" }}
       />
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="py-12 grid gap-6 sm:grid-cols-2 items-center">
-          {/* Left */}
-          <div className="space-y-2">
-            <p className="text-sm font-semibold">NOMADS</p>
-            <p className="text-xs opacity-60 max-w-md">
-              Smart, interest-driven weekend travel with optimized routes,
-              pickup assistance, and seamless payments.
-            </p>
-          </div>
-
-          {/* Right */}
-          <div className="flex sm:justify-end">
-            <p className="text-xs opacity-50 text-right">
-              © 2026 NOMADS
-              <br />
-              Built for Tripfactory Internship Travelathon
-            </p>
-          </div>
+      <div className="section py-10 flex flex-col sm:flex-row justify-between gap-4 text-sm" style={{ color: "var(--color-text)", opacity: 0.7 }}>
+        <div>
+          <p className="font-semibold" style={{ color: "var(--color-text)", opacity: 1 }}>NOMADS</p>
+          <p>Smart Weekend Travel & Assistance</p>
         </div>
+
+        <p className="text-xs sm:text-right opacity-70">
+          © 2026 NOMADS <br />
+          Built for Tripfactory Internship Travelathon
+        </p>
       </div>
     </footer>
   );

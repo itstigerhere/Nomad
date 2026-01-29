@@ -6,14 +6,35 @@ export default function Hero() {
     return (
         <section className="relative overflow-hidden">
             {/* Background glow */}
-            <div
-                className="absolute -top-40 -left-40 h-[500px] w-[500px] rounded-full blur-3xl opacity-25"
-                style={{ backgroundColor: "var(--color-brand)" }}
-            />
-            <div
-                className="absolute -bottom-40 -right-40 h-[500px] w-[500px] rounded-full blur-3xl opacity-20"
-                style={{ backgroundColor: "var(--color-brand)" }}
-            />
+            {/* Ambient background glow */}
+            <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                {/* Top-left soft glow */}
+                <div
+                    className="absolute -top-24 -left-24 h-[420px] w-[420px] rounded-full blur-[120px]"
+                    style={{
+                        background:
+                            "radial-gradient(circle at center, rgba(97,194,162,0.35), transparent 70%)",
+                    }}
+                />
+
+                {/* Bottom-right subtle glow */}
+                <div
+                    className="absolute bottom-[-160px] right-[-120px] h-[520px] w-[520px] rounded-full blur-[140px]"
+                    style={{
+                        background:
+                            "radial-gradient(circle at center, rgba(97,194,162,0.25), transparent 70%)",
+                    }}
+                />
+
+                {/* Very faint wide wash for cohesion */}
+                <div
+                    className="absolute top-1/3 left-1/4 h-[700px] w-[700px] rounded-full blur-[180px]"
+                    style={{
+                        background:
+                            "radial-gradient(circle at center, rgba(97,194,162,0.08), transparent 75%)",
+                    }}
+                />
+            </div>
 
             {/* Hero content */}
             <div className="section pt-24 pb-20 sm:pt-32 sm:pb-28 relative">
