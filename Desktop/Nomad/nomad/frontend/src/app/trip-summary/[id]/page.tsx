@@ -87,6 +87,36 @@ export default function TripSummaryPage() {
                 <p className="font-semibold">{summary.tripRequestId}</p>
                 <p className="text-sm text-slate-600">Status</p>
                 <p className="font-semibold">{summary.status}</p>
+                <p className="text-sm text-slate-600">Travel Date</p>
+                <p className="font-semibold">
+                  {(() => {
+                    const date = summary.travelDate;
+                    if (!date || date === null || date === undefined || date === "") {
+                      return <span className="text-slate-400">Not set</span>;
+                    }
+                    try {
+                      let dateStr: string;
+                      if (Array.isArray(date)) {
+                        dateStr = `${date[0]}-${String(date[1]).padStart(2, '0')}-${String(date[2]).padStart(2, '0')}`;
+                      } else if (typeof date === 'string') {
+                        dateStr = date;
+                      } else {
+                        return <span className="text-slate-400">Invalid date format</span>;
+                      }
+                      const parsedDate = new Date(dateStr);
+                      if (isNaN(parsedDate.getTime())) {
+                        return <span className="text-slate-400">Invalid date</span>;
+                      }
+                      return parsedDate.toLocaleDateString('en-US', { 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      });
+                    } catch (e) {
+                      return <span className="text-slate-400">Error parsing date</span>;
+                    }
+                  })()}
+                </p>
                 <p className="text-sm text-slate-600">Estimated Cost</p>
                 <p className="font-semibold">₹ {summary.estimatedCost}</p>
                 {summary.shareToken && (

@@ -1,4 +1,6 @@
+
 package com.tripfactory.nomad.domain.entity;
+import java.time.LocalDate;
 
 import java.time.LocalDateTime;
 
@@ -25,6 +27,9 @@ import lombok.Setter;
 @Entity
 @Table(name = "trip_groups")
 public class TripGroup {
+
+    @Column(nullable = true)
+    private LocalDate travelDate;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

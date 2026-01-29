@@ -13,6 +13,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+
+import com.tripfactory.nomad.api.dto.PlanPreviewRequest;
+import com.tripfactory.nomad.api.dto.PlanPreviewResponse;
 import com.tripfactory.nomad.api.dto.TripCreateRequest;
 import com.tripfactory.nomad.api.dto.TripResponse;
 import com.tripfactory.nomad.domain.entity.User;
@@ -29,6 +32,13 @@ public class TripController {
 
     private final TripService tripService;
     private final UserRepository userRepository;
+
+    // Specific endpoints should come before path variable endpoints
+    @PostMapping(value = "/preview")
+    public ResponseEntity<PlanPreviewResponse> previewPlans(@Valid @RequestBody PlanPreviewRequest request) {
+        System.out.println("[TRIP CONTROLLER] previewPlans endpoint called");
+        return ResponseEntity.ok(tripService.previewPlans(request));
+    }
 
     @PostMapping("/create")
     public ResponseEntity<TripResponse> createTrip(@Valid @RequestBody TripCreateRequest request) {
@@ -48,6 +58,7 @@ public class TripController {
         return ResponseEntity.ok(tripService.getTripsByUser(user.getId()));
     }
 
+    // Path variable endpoint should come last
     @GetMapping("/{id}")
     @PreAuthorize("@authz.canAccessTrip(#id)")
     public ResponseEntity<TripResponse> getTrip(@PathVariable Long id) {

@@ -1,9 +1,13 @@
+
 package com.tripfactory.nomad.api.dto;
+import java.time.LocalDate;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.tripfactory.nomad.domain.enums.TripStatus;
 
 import lombok.Getter;
@@ -13,7 +17,11 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
+@JsonInclude(JsonInclude.Include.ALWAYS)
 public class TripResponse {
+
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate travelDate;
 
     private Long tripRequestId;
     private Long userId;

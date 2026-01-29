@@ -1,6 +1,8 @@
 package com.tripfactory.nomad.service.impl;
 
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -8,9 +10,13 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
+import com.tripfactory.nomad.api.dto.PlanPreviewRequest;
+import com.tripfactory.nomad.api.dto.PlanPreviewResponse;
 import com.tripfactory.nomad.api.dto.TripCreateRequest;
 import com.tripfactory.nomad.api.dto.TripPlanItemResponse;
 import com.tripfactory.nomad.api.dto.TripPlanOptionResponse;
@@ -24,42 +30,128 @@ import com.tripfactory.nomad.domain.enums.GroupStatus;
 import com.tripfactory.nomad.domain.enums.TravelMode;
 import com.tripfactory.nomad.domain.enums.TripStatus;
 import com.tripfactory.nomad.domain.enums.WeekendType;
+import com.tripfactory.nomad.domain.repository.TripRepository;
 import com.tripfactory.nomad.repository.PlaceRepository;
 import com.tripfactory.nomad.repository.TripGroupRepository;
 import com.tripfactory.nomad.repository.TripPlanRepository;
+
 import com.tripfactory.nomad.repository.TripRequestRepository;
 import com.tripfactory.nomad.repository.UserRepository;
 import com.tripfactory.nomad.service.NotificationService;
 import com.tripfactory.nomad.service.TripService;
-import com.tripfactory.nomad.service.exception.BadRequestException;
-import com.tripfactory.nomad.service.exception.ResourceNotFoundException;
-import com.tripfactory.nomad.service.util.GeoUtils;
+// import com.tripfactory.nomad.exception.BadRequestException;
+// import com.tripfactory.nomad.exception.ResourceNotFoundException;
+// import com.tripfactory.nomad.util.GeoUtils;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 
-import lombok.RequiredArgsConstructor;
 
 @Service
-@RequiredArgsConstructor
 public class TripServiceImpl implements TripService {
-
-    private static final BigDecimal BASE_COST_PER_PLACE = new BigDecimal("500");
-    private static final BigDecimal PICKUP_COST = new BigDecimal("300");
-
     private final UserRepository userRepository;
     private final PlaceRepository placeRepository;
     private final TripGroupRepository tripGroupRepository;
     private final TripRequestRepository tripRequestRepository;
     private final TripPlanRepository tripPlanRepository;
     private final NotificationService notificationService;
+    private final TripRepository tripRepository;
+
+    private static final BigDecimal BASE_COST_PER_PLACE = new BigDecimal("500");
+    private static final BigDecimal PICKUP_COST = new BigDecimal("1000");
+
+    public TripServiceImpl(UserRepository userRepository,
+                          PlaceRepository placeRepository,
+                          TripGroupRepository tripGroupRepository,
+                          TripRequestRepository tripRequestRepository,
+                          TripPlanRepository tripPlanRepository,
+                          NotificationService notificationService,
+                          TripRepository tripRepository) {
+        this.userRepository = userRepository;
+        this.placeRepository = placeRepository;
+        this.tripGroupRepository = tripGroupRepository;
+        this.tripRequestRepository = tripRequestRepository;
+        this.tripPlanRepository = tripPlanRepository;
+        this.notificationService = notificationService;
+        this.tripRepository = tripRepository;
+    }
+
+    @Override
+    public PlanPreviewResponse previewPlans(PlanPreviewRequest request) {
+        if (request.getUserId() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "userId is required");
+        }
+        User user = userRepository.findById(request.getUserId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        String city = request.getCity() != null ? request.getCity() : user.getCity();
+        Double userLat = request.getUserLatitude() != null ? request.getUserLatitude() : user.getLatitude();
+        Double userLon = request.getUserLongitude() != null ? request.getUserLongitude() : user.getLongitude();
+
+        if (city == null || userLat == null || userLon == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "City and user coordinates are required");
+        }
+
+        List<Place> places = placeRepository.findByCityIgnoreCase(city);
+        if (places.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No places found for the city");
+        }
+
+        WeekendType weekendType = Objects.requireNonNullElse(request.getWeekendType(), WeekendType.ONE_DAY);
+        int totalSlots = weekendType == WeekendType.TWO_DAY ? 6 : 4;
+        int dayCount = weekendType == WeekendType.TWO_DAY ? 2 : 1;
+        int perDay = (int) Math.ceil((double) totalSlots / dayCount);
+
+        // Generate plan options (without saving to database)
+        List<com.tripfactory.nomad.api.dto.TripPlanOptionResponse> planOptions = new ArrayList<>();
+        
+        // Create a temporary TripRequest for building plans (not saved)
+        TripRequest tempTripRequest = new TripRequest();
+        tempTripRequest.setUser(user);
+        tempTripRequest.setCity(city);
+        tempTripRequest.setWeekendType(weekendType);
+        
+        for (com.tripfactory.nomad.domain.enums.InterestType type : com.tripfactory.nomad.domain.enums.InterestType.values()) {
+            List<Place> filtered = places.stream().filter(p -> p.getCategory() == type).collect(Collectors.toList());
+            if (!filtered.isEmpty()) {
+                List<Place> ranked = rankPlaces(filtered, userLat, userLon, type);
+                List<TripPlan> plan = buildPlans(tempTripRequest, ranked, totalSlots, perDay);
+                if (!plan.isEmpty()) {
+                    planOptions.add(toPlanOptionResponse(type.name() + " Only", plan));
+                }
+            }
+        }
+
+        // Generate hybrid plan
+        List<Place> hybrid = new ArrayList<>();
+        int perInterest = Math.max(1, totalSlots / com.tripfactory.nomad.domain.enums.InterestType.values().length);
+        for (com.tripfactory.nomad.domain.enums.InterestType type : com.tripfactory.nomad.domain.enums.InterestType.values()) {
+            List<Place> filtered = places.stream().filter(p -> p.getCategory() == type).limit(perInterest).collect(Collectors.toList());
+            hybrid.addAll(filtered);
+        }
+        if (!hybrid.isEmpty()) {
+            List<Place> rankedHybrid = rankPlaces(hybrid, userLat, userLon, null);
+            List<TripPlan> hybridPlan = buildPlans(tempTripRequest, rankedHybrid, totalSlots, perDay);
+            if (!hybridPlan.isEmpty()) {
+                planOptions.add(toPlanOptionResponse("Hybrid", hybridPlan));
+            }
+        }
+
+        PlanPreviewResponse response = new PlanPreviewResponse();
+        response.setCity(city);
+        response.setPlanOptions(planOptions);
+        return response;
+    }
 
     @Override
     @Transactional
+    @SuppressWarnings("null")
     public TripResponse createTrip(TripCreateRequest request) {
         // ...existing code...
         if (request.getUserId() == null) {
-            throw new BadRequestException("userId is required");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "userId is required");
         }
         User user = userRepository.findById(request.getUserId())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
         // Allow user to create trips for any city
         String city = request.getCity() != null ? request.getCity() : user.getCity();
@@ -67,7 +159,7 @@ public class TripServiceImpl implements TripService {
         Double userLon = request.getUserLongitude() != null ? request.getUserLongitude() : user.getLongitude();
 
         if (city == null || userLat == null || userLon == null) {
-            throw new BadRequestException("City and user coordinates are required");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "City and user coordinates are required");
         }
 
         TripRequest tripRequest = new TripRequest();
@@ -79,9 +171,19 @@ public class TripServiceImpl implements TripService {
             () -> com.tripfactory.nomad.domain.enums.TravelMode.valueOf(user.getTravelPreference().name())));
         tripRequest.setPickupRequired(Boolean.TRUE.equals(request.getPickupRequired()));
         tripRequest.setStatus(TripStatus.REQUESTED);
+        
+        // Calculate travel date: use provided date or default to next weekend
+        LocalDate travelDate = request.getTravelDate();
+        System.out.println("[DEBUG] createTrip - Request travelDate: " + travelDate);
+        if (travelDate == null) {
+            travelDate = calculateNextWeekendDate(tripRequest.getWeekendType());
+            System.out.println("[DEBUG] createTrip - Calculated default travelDate: " + travelDate);
+        }
+        tripRequest.setTravelDate(travelDate);
+        System.out.println("[DEBUG] createTrip - Setting travelDate on tripRequest: " + travelDate);
 
         if (tripRequest.getTravelMode() == TravelMode.GROUP) {
-            TripGroup group = assignGroup(city, tripRequest.getInterest(), tripRequest.getWeekendType());
+            TripGroup group = assignGroup(city, tripRequest.getInterest(), tripRequest.getWeekendType(), travelDate);
             tripRequest.setGroup(group);
         }
 
@@ -89,87 +191,85 @@ public class TripServiceImpl implements TripService {
 
         List<Place> places = placeRepository.findByCityIgnoreCase(city);
         if (places.isEmpty()) {
-            throw new BadRequestException("No places found for the city");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No places found for the city");
         }
 
         int totalSlots = savedRequest.getWeekendType() == WeekendType.TWO_DAY ? 6 : 4;
         int dayCount = savedRequest.getWeekendType() == WeekendType.TWO_DAY ? 2 : 1;
         int perDay = (int) Math.ceil((double) totalSlots / dayCount);
 
+        // Generate all plan options to find the selected one
+        List<TripPlan> selectedPlanPlans = null;
+        String selectedPlanType = request.getSelectedPlanType();
+        
+        if (selectedPlanType == null || selectedPlanType.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "selectedPlanType is required");
+        }
 
-        // Collect all TripPlans to persist
-        List<TripPlan> allPlansToSave = new ArrayList<>();
-        List<com.tripfactory.nomad.api.dto.TripPlanOptionResponse> planOptions = new ArrayList<>();
+        // Generate plans for each interest type
         for (com.tripfactory.nomad.domain.enums.InterestType type : com.tripfactory.nomad.domain.enums.InterestType.values()) {
+            String planType = type.name() + " Only";
             List<Place> filtered = places.stream().filter(p -> p.getCategory() == type).collect(Collectors.toList());
-            if (!filtered.isEmpty()) {
+            if (!filtered.isEmpty() && planType.equals(selectedPlanType)) {
                 List<Place> ranked = rankPlaces(filtered, userLat, userLon, type);
-                List<TripPlan> plan = buildPlans(savedRequest, ranked, totalSlots, perDay);
-                if (!plan.isEmpty()) {
-                    allPlansToSave.addAll(plan);
-                }
-                planOptions.add(toPlanOptionResponse(type.name() + " Only", plan));
+                selectedPlanPlans = buildPlans(savedRequest, ranked, totalSlots, perDay);
+                break;
             }
         }
 
-        // Generate a hybrid plan (mix of interests)
-        List<Place> hybrid = new ArrayList<>();
-        int perInterest = Math.max(1, totalSlots / com.tripfactory.nomad.domain.enums.InterestType.values().length);
-        for (com.tripfactory.nomad.domain.enums.InterestType type : com.tripfactory.nomad.domain.enums.InterestType.values()) {
-            List<Place> filtered = places.stream().filter(p -> p.getCategory() == type).limit(perInterest).collect(Collectors.toList());
-            hybrid.addAll(filtered);
-        }
-        if (!hybrid.isEmpty()) {
-            List<Place> rankedHybrid = rankPlaces(hybrid, userLat, userLon, null);
-            List<TripPlan> hybridPlan = buildPlans(savedRequest, rankedHybrid, totalSlots, perDay);
-            if (!hybridPlan.isEmpty()) {
-                allPlansToSave.addAll(hybridPlan);
+        // If not found, check for hybrid plan
+        if (selectedPlanPlans == null && "Hybrid".equals(selectedPlanType)) {
+            List<Place> hybrid = new ArrayList<>();
+            int perInterest = Math.max(1, totalSlots / com.tripfactory.nomad.domain.enums.InterestType.values().length);
+            for (com.tripfactory.nomad.domain.enums.InterestType type : com.tripfactory.nomad.domain.enums.InterestType.values()) {
+                List<Place> filtered = places.stream().filter(p -> p.getCategory() == type).limit(perInterest).collect(Collectors.toList());
+                hybrid.addAll(filtered);
             }
-            planOptions.add(toPlanOptionResponse("Hybrid", hybridPlan));
+            if (!hybrid.isEmpty()) {
+                List<Place> rankedHybrid = rankPlaces(hybrid, userLat, userLon, null);
+                selectedPlanPlans = buildPlans(savedRequest, rankedHybrid, totalSlots, perDay);
+            }
         }
 
-        // Persist all TripPlans to the database
-        // Debug print after all variables are declared and populated
+        if (selectedPlanPlans == null || selectedPlanPlans.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Selected plan type not found or has no places: " + selectedPlanType);
+        }
+
+        // Save ONLY the selected plan's TripPlans
         System.out.println("[DEBUG] Creating trip for city: " + city);
-        System.out.println("[DEBUG] Places found for city: " + places.size());
-        System.out.println("[DEBUG] Total plans to save: " + allPlansToSave.size());
-        for (TripPlan plan : allPlansToSave) {
-            System.out.println("[DEBUG] Plan: day=" + plan.getDayNumber() + ", place=" + plan.getPlace().getName() + ", tripRequestId=" + plan.getTripRequest().getId());
-        }
-        if (!allPlansToSave.isEmpty()) {
-            tripPlanRepository.saveAll(allPlansToSave);
-        }
+        System.out.println("[DEBUG] Selected plan type: " + selectedPlanType);
+        System.out.println("[DEBUG] Places in selected plan: " + selectedPlanPlans.size());
+        tripPlanRepository.saveAll(selectedPlanPlans);
 
         savedRequest.setStatus(TripStatus.PLANNED);
         TripRequest updated = tripRequestRepository.save(savedRequest);
+        System.out.println("[DEBUG] After final save - updated.getTravelDate(): " + updated.getTravelDate());
 
-        // Re-fetch TripPlans from the database to ensure attached entities
+        // Re-fetch the saved TripPlans
         List<TripPlan> attachedPlans = tripPlanRepository.findByTripRequestIdOrderByDayNumberAscStartTimeAsc(updated.getId());
-
-        // Build plan options from attached entities
+        
+        // Build response with only the selected plan
         List<com.tripfactory.nomad.api.dto.TripPlanOptionResponse> attachedPlanOptions = new ArrayList<>();
-        for (com.tripfactory.nomad.domain.enums.InterestType type : com.tripfactory.nomad.domain.enums.InterestType.values()) {
-            List<TripPlan> filteredPlans = attachedPlans.stream()
-                .filter(plan -> plan.getPlace().getCategory() == type)
-                .collect(Collectors.toList());
-            if (!filteredPlans.isEmpty()) {
-                attachedPlanOptions.add(toPlanOptionResponse(type.name() + " Only", filteredPlans));
-            }
-        }
-        // Hybrid option
-        attachedPlanOptions.add(toPlanOptionResponse("Hybrid", attachedPlans));
+        attachedPlanOptions.add(toPlanOptionResponse(selectedPlanType, attachedPlans));
 
         TripResponse response = new TripResponse();
         response.setTripRequestId(updated.getId());
         response.setUserId(updated.getUser().getId());
         response.setCity(updated.getCity());
-        response.setShareToken(updated.getShareToken());
+        // shareToken removed
         if (updated.getGroup() != null) {
             response.setGroupId(updated.getGroup().getId());
             response.setGroupSize(tripRequestRepository.countByGroupId(updated.getGroup().getId()));
         }
         response.setStatus(updated.getStatus());
         response.setCreatedAt(updated.getCreatedAt());
+        // Ensure travelDate is set (use from updated request or recalculate if still null)
+        LocalDate responseTravelDate = updated.getTravelDate();
+        if (responseTravelDate == null) {
+            responseTravelDate = calculateNextWeekendDate(updated.getWeekendType());
+        }
+        response.setTravelDate(responseTravelDate);
+        System.out.println("[DEBUG] TripResponse travelDate: " + responseTravelDate);
         response.setPlans(attachedPlanOptions);
         response.setEstimatedCost(estimateCost(totalSlots, Boolean.TRUE.equals(request.getPickupRequired())));
 
@@ -182,31 +282,35 @@ public class TripServiceImpl implements TripService {
         return response;
     }
 
-        private com.tripfactory.nomad.api.dto.TripPlanOptionResponse toPlanOptionResponse(String type, List<TripPlan> plans) {
+    private com.tripfactory.nomad.api.dto.TripPlanOptionResponse toPlanOptionResponse(String type, List<TripPlan> plans) {
         com.tripfactory.nomad.api.dto.TripPlanOptionResponse option = new com.tripfactory.nomad.api.dto.TripPlanOptionResponse();
         option.setType(type);
         List<TripPlanItemResponse> items = plans.stream().map(plan -> {
+            Place place = plan.getPlace();
             TripPlanItemResponse item = new TripPlanItemResponse();
             item.setDayNumber(plan.getDayNumber());
-            item.setPlaceId(plan.getPlace().getId());
-            item.setPlaceName(plan.getPlace().getName());
+            item.setPlaceId(place.getId());
+            item.setPlaceName(place.getName());
             item.setStartTime(plan.getStartTime());
             item.setEndTime(plan.getEndTime());
             item.setDistanceFromPrevious(plan.getDistanceFromPrevious());
-            item.setLatitude(plan.getPlace().getLatitude());
-            item.setLongitude(plan.getPlace().getLongitude());
-            // Debug print for coordinates
-            System.out.println("[DEBUG] PlanItem: place=" + plan.getPlace().getName() + ", lat=" + plan.getPlace().getLatitude() + ", lon=" + plan.getPlace().getLongitude());
+            item.setLatitude(place.getLatitude());
+            item.setLongitude(place.getLongitude());
+            // Include full place data
+            item.setCity(place.getCity());
+            item.setCategory(place.getCategory());
+            item.setRating(place.getRating());
             return item;
         }).collect(Collectors.toList());
         option.setPlaces(items);
         return option;
-        }
+    }
 
     @Override
+    @SuppressWarnings("null")
     public TripResponse getTrip(Long tripRequestId) {
         TripRequest tripRequest = tripRequestRepository.findById(tripRequestId)
-                .orElseThrow(() -> new ResourceNotFoundException("Trip not found"));
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Trip not found"));
         List<TripPlan> plans = tripPlanRepository.findByTripRequestIdOrderByDayNumberAscStartTimeAsc(tripRequestId);
         TripResponse response = toResponse(tripRequest, plans);
         response.setEstimatedCost(estimateCost(plans.size(), Boolean.TRUE.equals(tripRequest.getPickupRequired())));
@@ -230,11 +334,11 @@ public class TripServiceImpl implements TripService {
     private List<Place> rankPlaces(List<Place> places, double userLat, double userLon,
             com.tripfactory.nomad.domain.enums.InterestType interest) {
         return places.stream()
-                .sorted(Comparator
-                        .comparing((Place p) -> interest != null && interest == p.getCategory() ? 0 : 1)
-                        .thenComparing(p -> GeoUtils.haversineKm(userLat, userLon, p.getLatitude(), p.getLongitude()))
-                        .thenComparing(Place::getRating, Comparator.reverseOrder()))
-                .collect(Collectors.toList());
+            .sorted(Comparator
+                .comparing((Place p) -> interest != null && interest == p.getCategory() ? 0 : 1)
+                .thenComparing(p -> haversineKm(userLat, userLon, p.getLatitude(), p.getLongitude()))
+                .thenComparing(Place::getRating, Comparator.reverseOrder()))
+            .collect(Collectors.toList());
     }
 
     private List<TripPlan> buildPlans(TripRequest tripRequest, List<Place> rankedPlaces, int totalSlots, int perDay) {
@@ -268,11 +372,11 @@ public class TripServiceImpl implements TripService {
                 plan.setStartTime(start);
                 plan.setEndTime(start.plusHours(2));
                 double distance = previous == null
-                        ? GeoUtils.haversineKm(tripRequest.getUser().getLatitude(),
-                                tripRequest.getUser().getLongitude(),
-                                place.getLatitude(), place.getLongitude())
-                        : GeoUtils.haversineKm(previous.getLatitude(), previous.getLongitude(),
-                                place.getLatitude(), place.getLongitude());
+                    ? haversineKm(tripRequest.getUser().getLatitude(),
+                        tripRequest.getUser().getLongitude(),
+                        place.getLatitude(), place.getLongitude())
+                    : haversineKm(previous.getLatitude(), previous.getLongitude(),
+                        place.getLatitude(), place.getLongitude());
                 plan.setDistanceFromPrevious(distance);
                 plans.add(plan);
                 start = start.plusHours(2);
@@ -284,9 +388,26 @@ public class TripServiceImpl implements TripService {
 
     private Place findNearestPlace(double currentLat, double currentLon, List<Place> places) {
         return places.stream()
-                .min(Comparator.comparing(place -> GeoUtils.haversineKm(currentLat, currentLon,
-                        place.getLatitude(), place.getLongitude())))
-                .orElseThrow();
+            .min(Comparator.comparing(place -> haversineKm(currentLat, currentLon,
+                toPrimitive(place.getLatitude()), toPrimitive(place.getLongitude()))))
+            .orElseThrow();
+    }
+
+    // Utility to handle Double (nullable) to double (primitive)
+    private static double toPrimitive(Double value) {
+        return value != null ? value : 0.0;
+    }
+
+    // Simple haversine formula implementation (replace GeoUtils)
+    private static double haversineKm(double lat1, double lon1, double lat2, double lon2) {
+        final int R = 6371; // Radius of the earth in km
+        double latDistance = Math.toRadians(lat2 - lat1);
+        double lonDistance = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
     }
 
     private List<Place> reorderForTimeWindows(List<Place> places) {
@@ -312,7 +433,16 @@ public class TripServiceImpl implements TripService {
         response.setTripRequestId(tripRequest.getId());
         response.setUserId(tripRequest.getUser().getId());
         response.setCity(tripRequest.getCity());
-        response.setShareToken(tripRequest.getShareToken());
+        // Use travelDate from tripRequest, or calculate default if null (for existing trips)
+        LocalDate travelDate = tripRequest.getTravelDate();
+        if (travelDate == null) {
+            travelDate = calculateNextWeekendDate(tripRequest.getWeekendType());
+            System.out.println("[DEBUG] Calculated default travelDate for trip " + tripRequest.getId() + ": " + travelDate);
+        } else {
+            System.out.println("[DEBUG] Using existing travelDate for trip " + tripRequest.getId() + ": " + travelDate);
+        }
+        response.setTravelDate(travelDate);
+        // shareToken removed
         if (tripRequest.getGroup() != null) {
             response.setGroupId(tripRequest.getGroup().getId());
             response.setGroupSize(tripRequestRepository.countByGroupId(tripRequest.getGroup().getId()));
@@ -325,15 +455,20 @@ public class TripServiceImpl implements TripService {
         response.setUserLongitude(user != null ? user.getLongitude() : null);
 
         List<TripPlanItemResponse> planItems = plans.stream().map(plan -> {
+            Place place = plan.getPlace();
             TripPlanItemResponse item = new TripPlanItemResponse();
             item.setDayNumber(plan.getDayNumber());
-            item.setPlaceId(plan.getPlace().getId());
-            item.setPlaceName(plan.getPlace().getName());
+            item.setPlaceId(place.getId());
+            item.setPlaceName(place.getName());
             item.setStartTime(plan.getStartTime());
             item.setEndTime(plan.getEndTime());
             item.setDistanceFromPrevious(plan.getDistanceFromPrevious());
-            item.setLatitude(plan.getPlace().getLatitude());
-            item.setLongitude(plan.getPlace().getLongitude());
+            item.setLatitude(place.getLatitude());
+            item.setLongitude(place.getLongitude());
+            // Include full place data
+            item.setCity(place.getCity());
+            item.setCategory(place.getCategory());
+            item.setRating(place.getRating());
             return item;
         }).collect(Collectors.toList());
         TripPlanOptionResponse option = new TripPlanOptionResponse();
@@ -351,16 +486,40 @@ public class TripServiceImpl implements TripService {
         return total;
     }
 
+    /**
+     * Calculates the next weekend date based on weekend type.
+     * For ONE_DAY: next Saturday
+     * For TWO_DAY: next Saturday (start of weekend)
+     */
+    private LocalDate calculateNextWeekendDate(WeekendType weekendType) {
+        LocalDate today = LocalDate.now();
+        DayOfWeek dayOfWeek = today.getDayOfWeek();
+        
+        // Calculate days until next Saturday
+        int daysUntilSaturday = DayOfWeek.SATURDAY.getValue() - dayOfWeek.getValue();
+        if (daysUntilSaturday <= 0) {
+            daysUntilSaturday += 7; // Next week's Saturday
+        }
+        
+        return today.plusDays(daysUntilSaturday);
+    }
+
     private TripGroup assignGroup(String city, com.tripfactory.nomad.domain.enums.InterestType interest,
-            WeekendType weekendType) {
+            WeekendType weekendType, LocalDate travelDate) {
+        // Only assign to group if travelDate is provided
+        if (travelDate == null) {
+            return null;
+        }
+        
         TripGroup group = tripGroupRepository
-                .findFirstByCityIgnoreCaseAndInterestAndWeekendTypeAndStatusOrderByCreatedAtAsc(
-                        city, interest, weekendType, GroupStatus.OPEN)
+                .findFirstByCityIgnoreCaseAndInterestAndWeekendTypeAndTravelDateAndStatusOrderByCreatedAtAsc(
+                        city, interest, weekendType, travelDate, GroupStatus.OPEN)
                 .orElseGet(() -> {
                     TripGroup created = new TripGroup();
                     created.setCity(city);
                     created.setInterest(interest);
                     created.setWeekendType(weekendType);
+                    created.setTravelDate(travelDate);
                     created.setStatus(GroupStatus.OPEN);
                     return tripGroupRepository.save(created);
                 });

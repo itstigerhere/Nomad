@@ -7,6 +7,9 @@ import MapView from "@/components/MapView";
 import ProtectedPage from "@/components/ProtectedPage";
 import { fetchRoute } from "@/lib/routeApi";
 import { fetchTrip } from "@/lib/tripApi";
+import dynamic from "next/dynamic";
+
+const GroupmatesButton = dynamic(() => import("@/components/GroupmatesButton"), { ssr: false });
 
 export default function TripSummaryPage() {
   const searchParams = useSearchParams();
@@ -22,9 +25,12 @@ export default function TripSummaryPage() {
   const loadTrip = async () => {
     try {
       const data = await fetchTrip(Number(tripId));
+      console.log("Trip data received:", data);
+      console.log("Travel date value:", data.travelDate, "Type:", typeof data.travelDate);
       setSummary(data);
       setRouteGeoJson(null);
     } catch (error) {
+      console.error("Error loading trip:", error);
       setSummary(null);
     }
   };
@@ -99,55 +105,98 @@ export default function TripSummaryPage() {
                 <p className="font-semibold">{summary.tripRequestId}</p>
                 <p className="text-sm text-slate-600">Status</p>
                 <p className="font-semibold">{summary.status}</p>
+                <p className="text-sm text-slate-600">Travel Date</p>
+                <p className="font-semibold">
+                  {(() => {
+                    const date = summary.travelDate;
+                    console.log("Rendering travel date:", date, "Type:", typeof date, "IsArray:", Array.isArray(date));
+                    
+                    // Check for null, undefined, empty string, or empty array
+                    if (date === null || date === undefined || date === "" || 
+                        (Array.isArray(date) && date.length === 0)) {
+                      return <span className="text-slate-400">Not set</span>;
+                    }
+                    
+                    // Handle both string format (YYYY-MM-DD) and array format [YYYY, MM, DD]
+                    try {
+                      let dateStr: string;
+                      if (Array.isArray(date) && date.length >= 3) {
+                        // Handle array format [YYYY, MM, DD]
+                        dateStr = `${date[0]}-${String(date[1]).padStart(2, '0')}-${String(date[2]).padStart(2, '0')}`;
+                      } else if (typeof date === 'string' && date.trim() !== '') {
+                        dateStr = date.trim();
+                      } else {
+                        console.warn("Invalid date format:", date);
+                        return <span className="text-slate-400">Invalid date format</span>;
+                      }
+                      
+                      // Parse the date string
+                      const parsedDate = new Date(dateStr + 'T00:00:00'); // Add time to avoid timezone issues
+                      if (isNaN(parsedDate.getTime())) {
+                        console.warn("Invalid date after parsing:", dateStr);
+                        return <span className="text-slate-400">Invalid date</span>;
+                      }
+                      
+                      return parsedDate.toLocaleDateString('en-US', { 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      });
+                    } catch (e) {
+                      console.error("Error parsing date:", e, "Date value:", date);
+                      return <span className="text-slate-400">Error parsing date</span>;
+                    }
+                  })()}
+                </p>
                 <p className="text-sm text-slate-600">Estimated Cost</p>
                 <p className="font-semibold">₹ {summary.estimatedCost}</p>
-                {summary.shareToken && (
-                  <div className="pt-2">
-                    <p className="text-sm text-slate-600">Share Link</p>
-                    <a
-                      className="text-sm text-brand-700 underline"
-                      href={`/share/${summary.shareToken}`}
-                    >
-                      /share/{summary.shareToken}
-                    </a>
+                {/* Show groupmates button if groupId is present */}
+                {summary.groupId && (
+                  <div className="pt-4">
+                    <GroupmatesButton groupId={String(summary.groupId)} />
                   </div>
                 )}
               </div>
               {/* Always show the map for the selected plan, or the first plan by default */}
-              {summary.plans && summary.plans.length > 0 && (
-                <div className="card p-4 space-y-3">
-                  <h3 className="font-semibold mb-2">Itinerary: {summary.plans[selectedPlanIdx ?? 0].type}</h3>
-                  {/* Show map with all valid places */}
-                  <div className="mb-6" style={{ height: 320, overflow: 'hidden', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-                    {hasInvalidPlaces(summary.plans[selectedPlanIdx ?? 0].places) && (
-                      <p className="text-sm text-red-600 mb-2">Some places are missing coordinates and will not be shown on the map.</p>
-                    )}
-                    <MapView
-                      places={getValidPlaces(summary.plans[selectedPlanIdx ?? 0].places).map((p: any) => ({
-                        id: p.placeId,
-                        name: p.placeName,
-                        city: summary.city || "",
-                        latitude: p.latitude,
-                        longitude: p.longitude,
-                        category: p.category || "",
-                        rating: typeof p.rating === "number" ? p.rating : 0,
-                        distanceKm: typeof p.distanceFromPrevious === "number" ? p.distanceFromPrevious : 0,
-                      }))}
-                      userLocation={summary.userLatitude && summary.userLongitude ? {
-                        latitude: summary.userLatitude,
-                        longitude: summary.userLongitude,
-                      } : undefined}
-                    />
+              {summary.plans && summary.plans.length > 0 && (() => {
+                const idx = (selectedPlanIdx ?? 0);
+                const plan = summary.plans[idx];
+                if (!plan) return null;
+                return (
+                  <div className="card p-4 space-y-3">
+                    <h3 className="font-semibold mb-2">Itinerary: {plan.type}</h3>
+                    {/* Show map with all valid places */}
+                    <div className="mb-6" style={{ height: 320, overflow: 'hidden', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                      {hasInvalidPlaces(plan.places) && (
+                        <p className="text-sm text-red-600 mb-2">Some places are missing coordinates and will not be shown on the map.</p>
+                      )}
+                      <MapView
+                        places={getValidPlaces(plan.places).map((p: any) => ({
+                          id: p.placeId,
+                          name: p.placeName,
+                          city: summary.city || "",
+                          latitude: p.latitude,
+                          longitude: p.longitude,
+                          category: p.category || "",
+                          rating: typeof p.rating === "number" ? p.rating : 0,
+                          distanceKm: typeof p.distanceFromPrevious === "number" ? p.distanceFromPrevious : 0,
+                        }))}
+                        userLocation={summary.userLatitude && summary.userLongitude ? {
+                          latitude: summary.userLatitude,
+                          longitude: summary.userLongitude,
+                        } : undefined}
+                      />
+                    </div>
+                    <ol className="list-decimal ml-6 space-y-1">
+                      {plan.places.map((place: any, i: number) => (
+                        <li key={i}>
+                          <span className="font-semibold">Day {place.dayNumber}:</span> {place.placeName} <span className="text-xs text-slate-500">({place.startTime} - {place.endTime})</span>
+                        </li>
+                      ))}
+                    </ol>
                   </div>
-                  <ol className="list-decimal ml-6 space-y-1">
-                    {summary.plans[selectedPlanIdx ?? 0].places.map((place: any, i: number) => (
-                      <li key={i}>
-                        <span className="font-semibold">Day {place.dayNumber}:</span> {place.placeName} <span className="text-xs text-slate-500">({place.startTime} - {place.endTime})</span>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              )}
+                );
+              })()}
             </div>
           )}
         </div>

@@ -1,5 +1,5 @@
-
 package com.tripfactory.nomad.api.dto;
+
 import java.time.LocalDate;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
@@ -15,10 +15,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-public class TripCreateRequest {
-
-    @JsonFormat(pattern = "yyyy-MM-dd")
-    private LocalDate travelDate;
+public class PlanPreviewRequest {
 
     @NotNull
     private Long userId;
@@ -27,10 +24,9 @@ public class TripCreateRequest {
     private InterestType interest;
     private TravelMode travelMode;
     private Boolean pickupRequired;
-    private Integer groupSize;
     private Double userLatitude;
     private Double userLongitude;
     
-    // Selected plan type (e.g., "FOOD Only", "CULTURE Only", "Hybrid")
-    private String selectedPlanType;
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate travelDate;
 }

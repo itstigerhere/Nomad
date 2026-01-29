@@ -8,7 +8,7 @@ const LocationPicker = dynamic(() => import("@/components/LocationPicker"), { ss
 
 import ProtectedPage from "@/components/ProtectedPage";
 import { fetchMe } from "@/lib/authApi";
-import { createTrip } from "@/lib/tripApi";
+import { createTrip, previewPlans } from "@/lib/tripApi";
 
 export default function TripPlannerPage() {
   const router = useRouter();
@@ -22,15 +22,18 @@ export default function TripPlannerPage() {
     userLatitude: "",
     userLongitude: "",
     groupSize: "",
+    travelDate: "",
   });
   const [userLoaded, setUserLoaded] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [trip, setTrip] = useState<any | null>(null);
-  const [selectedPlanIdx, setSelectedPlanIdx] = useState<number | null>(null);
-  const [loadingUser, setLoadingUser] = useState(false);
+  const [planOptions, setPlanOptions] = useState<any[]>([]);
+  const [selectedPlanType, setSelectedPlanType] = useState<string | null>(null);
+  const [loadingPlans, setLoadingPlans] = useState(false);
   const [loadingTrip, setLoadingTrip] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cityLocked, setCityLocked] = useState(false);
+  const [showPlans, setShowPlans] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -61,16 +64,67 @@ export default function TripPlannerPage() {
     }));
   };
 
-  const handleSubmit = async () => {
+  const handlePreviewPlans = async () => {
     setError(null);
     setResult(null);
-    setTrip(null);
-    setSelectedPlanIdx(null);
+    setPlanOptions([]);
+    setSelectedPlanType(null);
+    setShowPlans(false);
+    
     if (!form.userId) {
       setError("User not loaded. Please log in.");
       return;
     }
+    if (!form.travelDate) {
+      setError("Please select a travel date.");
+      return;
+    }
+    
+    setLoadingPlans(true);
+    const payload = {
+      userId: Number(form.userId),
+      city: form.city || undefined,
+      weekendType: form.weekendType,
+      interest: form.interest,
+      travelMode: form.travelMode,
+      pickupRequired: form.pickupRequired,
+      userLatitude: form.userLatitude ? Number(form.userLatitude) : undefined,
+      userLongitude: form.userLongitude ? Number(form.userLongitude) : undefined,
+      travelDate: form.travelDate || undefined,
+    };
+
+    try {
+      console.log("Calling previewPlans with payload:", payload);
+      const data = await previewPlans(payload);
+      console.log("Preview plans response:", data);
+      setPlanOptions(data.planOptions || []);
+      setShowPlans(true);
+      if (data.planOptions && data.planOptions.length === 0) {
+        setError("No plans available for your preferences.");
+      }
+    } catch (error: any) {
+      console.error("Preview plans error:", error);
+      console.error("Error response:", error.response);
+      const errorMessage = error.response?.data?.message || 
+                          error.message || 
+                          "Failed to preview plans. Please ensure the backend server is running and restarted.";
+      setError(errorMessage);
+    } finally {
+      setLoadingPlans(false);
+    }
+  };
+
+  const handleCreateTrip = async () => {
+    if (!selectedPlanType) {
+      setError("Please select a plan first.");
+      return;
+    }
+    
+    setError(null);
+    setResult(null);
+    setTrip(null);
     setLoadingTrip(true);
+    
     const payload = {
       userId: Number(form.userId),
       city: form.city || undefined,
@@ -81,14 +135,17 @@ export default function TripPlannerPage() {
       userLatitude: form.userLatitude ? Number(form.userLatitude) : undefined,
       userLongitude: form.userLongitude ? Number(form.userLongitude) : undefined,
       groupSize: form.groupSize ? Number(form.groupSize) : undefined,
+      travelDate: form.travelDate || undefined,
+      selectedPlanType: selectedPlanType,
     };
 
     try {
       const data = await createTrip(payload);
       setTrip(data);
-      setResult(`Trip created with id ${data.tripRequestId}`);
-    } catch (error) {
-      setError("Failed to create trip");
+      setResult(`Trip created successfully with id ${data.tripRequestId}`);
+      setShowPlans(false);
+    } catch (error: any) {
+      setError(error.response?.data?.message || "Failed to create trip");
     } finally {
       setLoadingTrip(false);
     }
@@ -106,6 +163,18 @@ export default function TripPlannerPage() {
         </div>
 
         <div className="grid md:grid-cols-2 gap-4">
+                    <label className="space-y-2">
+                      <span className="text-sm font-semibold">Travel Date <span className="text-red-500">*</span></span>
+                      <input
+                        type="date"
+                        name="travelDate"
+                        value={form.travelDate}
+                        onChange={handleChange}
+                        className="w-full border rounded-xl px-4 py-2"
+                        min={new Date().toISOString().split('T')[0]}
+                        required
+                      />
+                    </label>
           {/* User ID is now hidden and auto-filled */}
           <label className="space-y-2">
             <span className="text-sm font-semibold">City</span>
@@ -177,66 +246,144 @@ export default function TripPlannerPage() {
           </label>
         </div>
 
-        <button className="btn-primary" onClick={handleSubmit} disabled={loadingTrip}>
-          {loadingTrip ? "Creating..." : "Create Trip"}
-        </button>
-        {result && <p className="text-sm text-slate-600">{result}</p>}
-        {/* Show plan options after trip creation */}
-        {trip?.plans && Array.isArray(trip.plans) && trip.plans.length > 0 && (
+        <div className="flex gap-3">
+          <button 
+            className="btn-primary" 
+            onClick={handlePreviewPlans} 
+            disabled={loadingPlans || loadingTrip}
+          >
+            {loadingPlans ? "Loading Plans..." : "Preview Plans"}
+          </button>
+          {showPlans && selectedPlanType && (
+            <button 
+              className="btn-primary" 
+              onClick={handleCreateTrip} 
+              disabled={loadingTrip}
+            >
+              {loadingTrip ? "Creating Trip..." : "Create Trip"}
+            </button>
+          )}
+        </div>
+        
+        {result && <p className="text-sm text-green-600 font-semibold">{result}</p>}
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        
+        {/* Show plan options after preview */}
+        {showPlans && planOptions.length > 0 && (
           <div className="mt-6">
-            <h3 className="text-lg font-semibold mb-2">Select a Plan</h3>
+            <h3 className="text-lg font-semibold mb-4">Select a Plan</h3>
             <div className="grid md:grid-cols-2 gap-4">
-              {trip.plans.map((plan: any, idx: number) => (
-                <div key={idx} className={`card p-4 border ${selectedPlanIdx === idx ? 'border-brand-600 bg-brand-50' : 'border-slate-200'}`}>
-                  <div className="flex items-center justify-between">
+              {planOptions.map((plan: any, idx: number) => (
+                <div 
+                  key={idx} 
+                  className={`card p-4 border cursor-pointer transition-all ${
+                    selectedPlanType === plan.type 
+                      ? 'border-brand-600 bg-brand-50 shadow-md' 
+                      : 'border-slate-200 hover:border-brand-300'
+                  }`}
+                  onClick={() => setSelectedPlanType(plan.type)}
+                >
+                  <div className="flex items-center justify-between mb-3">
                     <span className="font-bold text-brand-700">{plan.type}</span>
-                    <div className="flex gap-2">
-                      <button
-                        className={`btn-outline text-xs ${selectedPlanIdx === idx ? 'btn-primary' : ''}`}
-                        onClick={() => setSelectedPlanIdx(idx)}
-                      >
-                        {selectedPlanIdx === idx ? 'Selected' : 'Select'}
-                      </button>
-                      <button
-                        className="btn-primary text-xs"
-                        onClick={() => router.push(`/trip-summary?tripId=${trip.tripRequestId}&planIdx=${idx}`)}
-                      >
-                        Explore
-                      </button>
-                    </div>
+                    {selectedPlanType === plan.type && (
+                      <span className="badge bg-brand-600 text-white">Selected</span>
+                    )}
                   </div>
-                  <ul className="mt-2 space-y-1 text-sm">
-                    {plan.places.map((place: any, i: number) => (
-                      <li key={i}>
-                        <span className="font-semibold">Day {place.dayNumber}:</span> {place.placeName} <span className="text-xs text-slate-500">({place.startTime} - {place.endTime})</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="space-y-2">
+                    <p className="text-xs text-slate-500 mb-2">
+                      {plan.places?.length || 0} places • {plan.places?.[0]?.dayNumber === plan.places?.[plan.places.length - 1]?.dayNumber ? '1 day' : '2 days'}
+                    </p>
+                    <ul className="space-y-1 text-sm">
+                      {plan.places?.slice(0, 3).map((place: any, i: number) => (
+                        <li key={i} className="flex items-center gap-2">
+                          <span className="font-semibold text-xs">Day {place.dayNumber}:</span>
+                          <span>{place.placeName}</span>
+                          {place.latitude && place.longitude && (
+                            <span className="text-xs text-slate-400">
+                              ({place.latitude.toFixed(2)}, {place.longitude.toFixed(2)})
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                      {plan.places?.length > 3 && (
+                        <li className="text-xs text-slate-500">+ {plan.places.length - 3} more places</li>
+                      )}
+                    </ul>
+                    {plan.places && plan.places.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-slate-200">
+                        <p className="text-xs font-semibold text-slate-700">Place Details:</p>
+                        <div className="text-xs text-slate-600 space-y-1 mt-1">
+                          {plan.places.slice(0, 2).map((place: any, i: number) => (
+                            <div key={i}>
+                              <strong>{place.placeName}</strong> - {place.city} 
+                              {place.category && ` (${place.category})`}
+                              {place.rating && ` ⭐ ${place.rating}`}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
+            
             {/* Show details for selected plan */}
-            {selectedPlanIdx !== null && trip.plans[selectedPlanIdx] && (
+            {selectedPlanType && (
               <div className="mt-6 card p-4 bg-slate-50">
-                <h4 className="font-semibold mb-2">Plan Details: {trip.plans[selectedPlanIdx].type}</h4>
-                <ol className="list-decimal ml-6 space-y-1">
-                  {trip.plans[selectedPlanIdx].places.map((place: any, i: number) => (
-                    <li key={i}>
-                      <span className="font-semibold">Day {place.dayNumber}:</span> {place.placeName} <span className="text-xs text-slate-500">({place.startTime} - {place.endTime})</span>
-                    </li>
-                  ))}
-                </ol>
-                <button
-                  className="btn-primary mt-4"
-                  onClick={() => router.push(`/trip-summary?tripId=${trip.tripRequestId}&planIdx=${selectedPlanIdx}`)}
-                >
-                  View Full Itinerary
-                </button>
+                <h4 className="font-semibold mb-3">Selected Plan: {selectedPlanType}</h4>
+                {planOptions.find((p: any) => p.type === selectedPlanType) && (
+                  <>
+                    <ol className="list-decimal ml-6 space-y-2">
+                      {planOptions.find((p: any) => p.type === selectedPlanType)?.places.map((place: any, i: number) => (
+                        <li key={i} className="text-sm">
+                          <span className="font-semibold">Day {place.dayNumber}:</span> {place.placeName}
+                          <span className="text-xs text-slate-500 ml-2">
+                            ({place.startTime} - {place.endTime})
+                          </span>
+                          {place.latitude && place.longitude && (
+                            <span className="text-xs text-slate-400 ml-2">
+                              📍 {place.latitude.toFixed(4)}, {place.longitude.toFixed(4)}
+                            </span>
+                          )}
+                          {place.city && (
+                            <span className="text-xs text-slate-500 ml-2">📍 {place.city}</span>
+                          )}
+                          {place.rating && (
+                            <span className="text-xs text-slate-500 ml-2">⭐ {place.rating}</span>
+                          )}
+                        </li>
+                      ))}
+                    </ol>
+                    <button
+                      className="btn-primary mt-4"
+                      onClick={handleCreateTrip}
+                      disabled={loadingTrip}
+                    >
+                      {loadingTrip ? "Creating Trip..." : "Confirm & Create Trip"}
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>
         )}
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        
+        {/* Show created trip info */}
+        {trip && (
+          <div className="mt-6 card p-4 bg-green-50 border border-green-200">
+            <h4 className="font-semibold text-green-800 mb-2">Trip Created Successfully!</h4>
+            <p className="text-sm text-green-700 mb-3">
+              Trip ID: {trip.tripRequestId} • Status: {trip.status}
+            </p>
+            <button
+              className="btn-primary"
+              onClick={() => router.push(`/trip-summary?tripId=${trip.tripRequestId}`)}
+            >
+              View Trip Summary
+            </button>
+          </div>
+        )}
         </div>
       </div>
     </ProtectedPage>
