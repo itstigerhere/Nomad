@@ -11,9 +11,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.tripfactory.nomad.api.dto.TripGroupCreateRequest;
 import com.tripfactory.nomad.api.dto.TripGroupMemberResponse;
 import com.tripfactory.nomad.api.dto.TripGroupResponse;
-import com.tripfactory.nomad.api.dto.TripGroupCreateRequest;
 import com.tripfactory.nomad.service.TripGroupService;
 
 import lombok.RequiredArgsConstructor;

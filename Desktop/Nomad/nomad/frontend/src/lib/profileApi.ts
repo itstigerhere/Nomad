@@ -1,7 +1,4 @@
-
-import axios from 'axios';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
+import { api } from './api';
 
 export interface UpdateUserPayload {
   name: string;
@@ -21,12 +18,8 @@ export async function updateUser(userId: number, payload: UpdateUserPayload) {
 export async function uploadProfilePhoto(file: File): Promise<string> {
   const formData = new FormData();
   formData.append('file', file);
-  const token = localStorage.getItem('nomad_token');
-  const response = await axios.post(`${API_BASE_URL}/api/users/me/photo`, formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-    }
+  const { data } = await api.post('/api/users/me/photo', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
   });
-  return response.data; // returns the photo URL
+  return data;
 }

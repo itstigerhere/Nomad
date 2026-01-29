@@ -1,7 +1,7 @@
 "use client";
 
 import ProtectedPage from "@/components/ProtectedPage";
-import { api } from "@/lib/api";
+import { getMyTrips } from "@/lib/tripApi";
 import { createPayment, verifyPayment } from "@/lib/paymentApi";
 import { loadRazorpayScript, RazorpayHandlerResponse } from "@/lib/razorpay";
 import { useSearchParams } from "next/navigation";
@@ -33,22 +33,18 @@ export default function PaymentPage() {
     let mounted = true;
     (async () => {
       try {
-        const { data } = await api.get('/api/trips/me');
-        let tripsData = data || [];
+        const tripsData = await getMyTrips();
         // If tripId is set from query and not in trips, add a placeholder booking
         const tripReq = searchParams?.get('tripRequestId');
         const pre = searchParams?.get('prefillAmount');
+        let list: any[] = tripsData;
         if (tripReq && !tripsData.some((t: any) => String(t.tripRequestId) === String(tripReq) || String(t.id) === String(tripReq))) {
-          const placeholder = {
-            id: tripReq,
-            tripRequestId: tripReq,
-            city: '',
-            status: 'ENROLLED',
-            estimatedCost: pre || amount || '',
-          };
-          tripsData = [placeholder, ...tripsData];
+          list = [
+            { id: tripReq, tripRequestId: tripReq, city: '', status: 'ENROLLED', estimatedCost: pre || amount || '' },
+            ...tripsData,
+          ];
         }
-        if (mounted) setTrips(tripsData);
+        if (mounted) setTrips(list);
         // Auto-select the booking if tripReq is present
         if (tripReq && mounted) {
           setTimeout(() => {

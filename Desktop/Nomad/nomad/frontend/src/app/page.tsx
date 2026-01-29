@@ -1,8 +1,8 @@
 "use client";
 import PackageCard from "@/components/PackageCard";
+import { fetchMe } from "@/lib/authApi";
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
-import { fetchMe } from "@/lib/authApi";
 
 const PlacesList = dynamic(() => import("@/components/PlacesList"), { ssr: false });
 

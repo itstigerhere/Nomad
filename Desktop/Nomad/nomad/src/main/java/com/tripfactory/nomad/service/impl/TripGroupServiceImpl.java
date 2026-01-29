@@ -5,6 +5,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
+import com.tripfactory.nomad.api.dto.TripGroupCreateRequest;
 import com.tripfactory.nomad.api.dto.TripGroupMemberResponse;
 import com.tripfactory.nomad.api.dto.TripGroupResponse;
 import com.tripfactory.nomad.domain.entity.TripGroup;
@@ -22,6 +23,24 @@ public class TripGroupServiceImpl implements TripGroupService {
 
     private final TripGroupRepository tripGroupRepository;
     private final TripRequestRepository tripRequestRepository;
+
+    @Override
+    public TripGroupResponse createGroup(TripGroupCreateRequest request) {
+        TripGroup group = new TripGroup();
+        group.setCity(request.getCity());
+        group.setInterest(request.getInterest());
+        group.setWeekendType(request.getWeekendType());
+        group = tripGroupRepository.save(group);
+        TripGroupResponse response = new TripGroupResponse();
+        response.setId(group.getId());
+        response.setCity(group.getCity());
+        response.setInterest(group.getInterest());
+        response.setWeekendType(group.getWeekendType());
+        response.setStatus(group.getStatus());
+        response.setCreatedAt(group.getCreatedAt());
+        response.setSize(tripRequestRepository.countByGroupId(group.getId()));
+        return response;
+    }
 
     @Override
     public TripGroupResponse getGroup(Long groupId) {

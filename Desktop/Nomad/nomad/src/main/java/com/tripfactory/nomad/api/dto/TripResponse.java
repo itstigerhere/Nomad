@@ -1,8 +1,7 @@
 
 package com.tripfactory.nomad.api.dto;
-import java.time.LocalDate;
-
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 

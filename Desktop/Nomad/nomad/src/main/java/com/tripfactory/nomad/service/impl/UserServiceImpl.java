@@ -68,6 +68,7 @@ public class UserServiceImpl implements UserService {
         response.setTravelPreference(user.getTravelPreference());
         response.setRole(user.getRole());
         response.setCreatedAt(user.getCreatedAt());
+        response.setProfilePhotoUrl(user.getProfilePhotoUrl());
         return response;
     }
 }

@@ -11,27 +11,34 @@ import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tripfactory.nomad.api.dto.TripCreateRequest;
 import com.tripfactory.nomad.api.dto.TripResponse;
+import com.tripfactory.nomad.repository.UserRepository;
 import com.tripfactory.nomad.service.TripService;
 import com.tripfactory.nomad.service.jwt.JwtService;
+import com.tripfactory.nomad.TestMailConfig;
 
 @WebMvcTest(TripController.class)
+@Import(TestMailConfig.class)
 @AutoConfigureMockMvc(addFilters = false)
 public class TripControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private TripService tripService;
 
-    @MockBean
+    @MockitoBean
+    private UserRepository userRepository;
+
+    @MockitoBean
     private JwtService jwtService;
 
     @Autowired

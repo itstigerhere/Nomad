@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET(request) {
+export async function GET(_request: NextRequest) {
   // Fetch real trip data from backend
   const res = await fetch('http://localhost:8080/api/trips/me', {
     credentials: 'include', // if using cookies/session

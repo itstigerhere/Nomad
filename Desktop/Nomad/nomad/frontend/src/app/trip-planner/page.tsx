@@ -378,7 +378,7 @@ export default function TripPlannerPage() {
             </p>
             <button
               className="btn-primary"
-              onClick={() => router.push(`/trip-summary?tripId=${trip.tripRequestId}`)}
+              onClick={() => router.push(`/trip-summary/${trip.tripRequestId}`)}
             >
               View Trip Summary
             </button>

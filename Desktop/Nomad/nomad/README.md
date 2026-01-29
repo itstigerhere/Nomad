@@ -75,6 +75,23 @@ npm run dev
 
 ---
 
+## Troubleshooting
+
+### Frontend: 404 for `_next/static/chunks/...` or "Checking access..." never finishes
+- **Cause:** Stale or corrupted Next.js build cache.
+- **Fix:** Stop the dev server (Ctrl+C), delete the cache, and restart:
+  ```sh
+  cd frontend
+  rm -rf .next
+  npm run dev
+  ```
+  On Windows: `rmdir /s /q .next` then `npm run dev`.
+
+### Frontend: "Verification is taking too long"
+- The app could not reach the backend to verify your session. Ensure the backend is running on the URL set in `NEXT_PUBLIC_API_BASE_URL` (e.g. `http://localhost:8080`). Use **Retry** or **Log in again** on the page.
+
+---
+
 ## Notes
 - Make sure PostgreSQL is running and accessible.
 - For Razorpay/Mapbox, get your API keys and add them to `.env.local`.

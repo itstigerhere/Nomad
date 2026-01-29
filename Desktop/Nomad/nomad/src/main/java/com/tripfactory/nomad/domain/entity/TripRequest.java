@@ -1,7 +1,6 @@
 
 package com.tripfactory.nomad.domain.entity;
 import java.time.LocalDate;
-
 import java.time.LocalDateTime;
 
 import com.tripfactory.nomad.domain.enums.InterestType;

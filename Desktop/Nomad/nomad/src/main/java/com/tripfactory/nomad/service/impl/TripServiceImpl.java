@@ -30,7 +30,6 @@ import com.tripfactory.nomad.domain.enums.GroupStatus;
 import com.tripfactory.nomad.domain.enums.TravelMode;
 import com.tripfactory.nomad.domain.enums.TripStatus;
 import com.tripfactory.nomad.domain.enums.WeekendType;
-import com.tripfactory.nomad.domain.repository.TripRepository;
 import com.tripfactory.nomad.repository.PlaceRepository;
 import com.tripfactory.nomad.repository.TripGroupRepository;
 import com.tripfactory.nomad.repository.TripPlanRepository;
@@ -39,12 +38,6 @@ import com.tripfactory.nomad.repository.TripRequestRepository;
 import com.tripfactory.nomad.repository.UserRepository;
 import com.tripfactory.nomad.service.NotificationService;
 import com.tripfactory.nomad.service.TripService;
-// import com.tripfactory.nomad.exception.BadRequestException;
-// import com.tripfactory.nomad.exception.ResourceNotFoundException;
-// import com.tripfactory.nomad.util.GeoUtils;
-import org.springframework.web.server.ResponseStatusException;
-import org.springframework.http.HttpStatus;
-
 
 @Service
 public class TripServiceImpl implements TripService {
@@ -54,7 +47,6 @@ public class TripServiceImpl implements TripService {
     private final TripRequestRepository tripRequestRepository;
     private final TripPlanRepository tripPlanRepository;
     private final NotificationService notificationService;
-    private final TripRepository tripRepository;
 
     private static final BigDecimal BASE_COST_PER_PLACE = new BigDecimal("500");
     private static final BigDecimal PICKUP_COST = new BigDecimal("1000");
@@ -64,15 +56,13 @@ public class TripServiceImpl implements TripService {
                           TripGroupRepository tripGroupRepository,
                           TripRequestRepository tripRequestRepository,
                           TripPlanRepository tripPlanRepository,
-                          NotificationService notificationService,
-                          TripRepository tripRepository) {
+                          NotificationService notificationService) {
         this.userRepository = userRepository;
         this.placeRepository = placeRepository;
         this.tripGroupRepository = tripGroupRepository;
         this.tripRequestRepository = tripRequestRepository;
         this.tripPlanRepository = tripPlanRepository;
         this.notificationService = notificationService;
-        this.tripRepository = tripRepository;
     }
 
     @Override

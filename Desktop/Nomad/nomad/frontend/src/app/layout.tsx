@@ -17,15 +17,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-[var(--color-bg)] text-[var(--color-text)] antialiased">
+      <body className="bg-[var(--color-bg)] text-[var(--color-text)] antialiased min-h-screen">
         <div className="min-h-screen flex flex-col">
-          {/* Global header (fixed, with dark mode support) */}
           <Header />
-
-          {/* Page content (with padding for fixed header) */}
-          <main className="flex-1 pt-16 sm:pt-20">{children}</main>
-
-          {/* Global footer */}
+          <main className="flex-1 pt-16 sm:pt-20">
+            {children}
+          </main>
           <Footer />
         </div>
       </body>

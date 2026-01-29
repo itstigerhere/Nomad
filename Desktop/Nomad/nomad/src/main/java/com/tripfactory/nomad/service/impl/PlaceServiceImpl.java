@@ -11,7 +11,6 @@ import com.tripfactory.nomad.domain.entity.Place;
 import com.tripfactory.nomad.domain.enums.InterestType;
 import com.tripfactory.nomad.repository.PlaceRepository;
 import com.tripfactory.nomad.service.PlaceService;
-import com.tripfactory.nomad.service.util.GeoUtils;
 
 import lombok.RequiredArgsConstructor;
 
@@ -60,7 +59,20 @@ public class PlaceServiceImpl implements PlaceService {
         response.setLongitude(place.getLongitude());
         response.setCategory(place.getCategory());
         response.setRating(place.getRating());
-        response.setDistanceKm(GeoUtils.haversineKm(userLat, userLon, place.getLatitude(), place.getLongitude()));
+        response.setDistanceKm(haversineKm(userLat, userLon, place.getLatitude(), place.getLongitude()));
         return response;
+    }
+
+    private static double haversineKm(double lat1, double lon1, double lat2, double lon2) {
+        double earthRadiusKm = 6371.0;
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+        double rLat1 = Math.toRadians(lat1);
+        double rLat2 = Math.toRadians(lat2);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(rLat1) * Math.cos(rLat2)
+                * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return earthRadiusKm * c;
     }
 }

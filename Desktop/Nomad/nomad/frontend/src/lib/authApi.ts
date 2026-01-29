@@ -33,5 +33,6 @@ export async function fetchMe() {
     interestType?: string;
     travelPreference?: string;
     role?: string;
+    profilePhotoUrl?: string;
   };
 }

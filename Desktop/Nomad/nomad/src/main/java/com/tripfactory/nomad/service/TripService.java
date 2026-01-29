@@ -5,7 +5,6 @@ import java.util.List;
 import com.tripfactory.nomad.api.dto.PlanPreviewRequest;
 import com.tripfactory.nomad.api.dto.PlanPreviewResponse;
 import com.tripfactory.nomad.api.dto.TripCreateRequest;
-import com.tripfactory.nomad.api.dto.TripCreatePlacesRequest;
 import com.tripfactory.nomad.api.dto.TripResponse;
 
 public interface TripService {
