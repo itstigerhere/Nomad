@@ -37,3 +37,7 @@ node_modules/
 
 # Next.js
 .next/
+
+# Logs
+logs/
+*.log
