@@ -19,7 +19,7 @@ export default async function HomePage() {
             <h2 className="text-4xl font-bold leading-tight">
               Plan smart city getaways with personalized itineraries, pickup support, and seamless payments.
             </h2>
-            <p className="text-slate-600 text-lg">
+            <p className="opacity-70 text-lg">
               NOMAD helps you discover nearby places that match your interests, build efficient day plans, and
               arrange travel assistance—all in one platform.
             </p>
@@ -36,13 +36,13 @@ export default async function HomePage() {
               </div>
               <div className="grid gap-3">
                 {["Cultural Walk", "Food Trail", "Nature Escape"].map((item) => (
-                  <div key={item} className="p-4 border border-slate-100 rounded-xl bg-slate-50">
-                    <p className="font-semibold text-slate-800">{item}</p>
-                    <p className="text-sm text-slate-500">Curated for weekend travelers</p>
+                  <div key={item} className="p-4 border border-[var(--color-border)] rounded-xl" style={{backgroundColor: 'rgba(97, 194, 162, 0.05)'}}>
+                    <p className="font-semibold">{item}</p>
+                    <p className="text-sm opacity-60">Curated for weekend travelers</p>
                   </div>
                 ))}
               </div>
-              <div className="flex items-center justify-between text-sm text-slate-600">
+              <div className="flex items-center justify-between text-sm opacity-70">
                 <span>Pickup assistance</span>
                 <span>Real-time route planning</span>
                 <span>Secure payments</span>
@@ -62,7 +62,7 @@ export default async function HomePage() {
       <section className="section pb-16">
         <div className="mb-6">
           <h3 className="text-2xl font-semibold">Featured Weekend Packages</h3>
-          <p className="text-sm text-slate-600">Choose a curated weekend package and enroll instantly.</p>
+          <p className="text-sm opacity-70">Choose a curated weekend package and enroll instantly.</p>
         </div>
         <div className="grid md:grid-cols-3 gap-6">
           {
@@ -77,7 +77,7 @@ export default async function HomePage() {
           ].map((feature) => (
             <div key={feature.title} className="card p-6">
               <h4 className="font-semibold text-lg">{feature.title}</h4>
-              <p className="text-sm text-slate-600 mt-2">{feature.desc}</p>
+              <p className="text-sm opacity-70 mt-2">{feature.desc}</p>
             </div>
           ))}
         </div>

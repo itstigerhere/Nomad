@@ -91,7 +91,6 @@ export default function Header() {
             <Link href="/map" className={linkClass}>Map</Link>
             <Link href="/route-view" className={linkClass}>Route</Link>
             <Link href="/trip-summary" className={linkClass}>Summary</Link>
-            <Link href="/trips" className={linkClass}>Trips</Link>
             <Link href="/payment" className={linkClass}>Payment</Link>
 
             {user?.role === "ADMIN" && (
@@ -135,7 +134,8 @@ export default function Header() {
                           )}&background=4f6cff&color=fff&rounded=true&size=32`
                     }
                     alt="Profile"
-                    className="w-8 h-8 rounded-full border border-slate-200 shadow-sm"
+                    className="w-8 h-8 rounded-full shadow-sm"
+                    style={{ border: '1px solid var(--color-border)' }}
                   />
                   <span className="hidden sm:inline font-semibold">
                     {user.email.split("@")[0]}
@@ -143,16 +143,16 @@ export default function Header() {
                 </button>
 
                 {/* Dropdown */}
-                <div className="absolute right-0 mt-2 w-40 bg-white border border-slate-100 rounded-xl shadow-lg opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition z-50">
+                <div className="absolute right-0 mt-2 w-40 rounded-xl shadow-lg opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition z-50" style={{backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)'}}>
                   <Link
                     href="/profile"
-                    className="block px-4 py-2 hover:bg-slate-100"
+                    className="block px-4 py-2 hover:bg-[var(--color-brand)]/10"
                   >
                     Profile
                   </Link>
                   <button
                     onClick={logout}
-                    className="block w-full text-left px-4 py-2 hover:bg-slate-100"
+                    className="block w-full text-left px-4 py-2 hover:bg-[var(--color-brand)]/10"
                   >
                     Logout
                   </button>
