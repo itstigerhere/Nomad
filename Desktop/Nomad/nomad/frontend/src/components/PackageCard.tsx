@@ -5,6 +5,25 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "../lib/api";
 
+/** Placeholder image URLs by package name (used when API has no imageUrl) */
+const PACKAGE_IMAGES: Record<string, string> = {
+  "Weekend in Bengaluru": "https://picsum.photos/seed/bengaluru-weekend/400/240",
+  "Mumbai Shoreline": "https://picsum.photos/seed/mumbai-shoreline/400/240",
+  "Delhi Heritage Trip": "https://picsum.photos/seed/delhi-heritage/400/240",
+  "Hyderabad City Tour": "https://picsum.photos/seed/hyderabad-city/400/240",
+  "Chennai Coastal Escape": "https://picsum.photos/seed/chennai-coastal/400/240",
+  "Kolkata Culture Trail": "https://picsum.photos/seed/kolkata-culture/400/240",
+  "Pune Heritage & Hills": "https://picsum.photos/seed/pune-heritage/400/240",
+  "Jaipur Royal Experience": "https://picsum.photos/seed/jaipur-royal/400/240",
+  "Goa Beach & Heritage": "https://picsum.photos/seed/goa-beach/400/240",
+};
+const DEFAULT_PACKAGE_IMAGE = "https://picsum.photos/seed/nomad-package/400/240";
+
+function getPackageImageUrl(pkg: { imageUrl?: string | null; name?: string }): string {
+  if (pkg.imageUrl) return pkg.imageUrl;
+  return PACKAGE_IMAGES[pkg.name || ""] || DEFAULT_PACKAGE_IMAGE;
+}
+
 type Props = {
   pkg: any;
 };
@@ -12,6 +31,7 @@ type Props = {
 export default function PackageCard({ pkg }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   async function handleEnroll() {
     setLoading(true);
@@ -31,9 +51,16 @@ export default function PackageCard({ pkg }: Props) {
     }
   }
 
+  const imgSrc = imgError ? DEFAULT_PACKAGE_IMAGE : getPackageImageUrl(pkg);
+
   return (
     <div className="card p-4">
-      <img src={pkg.imageUrl || '/images/package-placeholder.jpg'} alt={pkg.name} className="h-40 w-full object-cover rounded-md" />
+      <img
+        src={imgSrc}
+        alt={pkg.name}
+        className="h-40 w-full object-cover rounded-md"
+        onError={() => setImgError(true)}
+      />
       <div className="py-3">
         <h3 className="text-lg font-semibold">{pkg.name}</h3>
         <p className="text-sm opacity-70">{pkg.shortDescription}</p>

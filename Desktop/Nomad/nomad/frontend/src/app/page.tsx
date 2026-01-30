@@ -1,6 +1,5 @@
 "use client";
 import PackageCard from "@/components/PackageCard";
-import { fetchMe } from "@/lib/authApi";
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 
@@ -13,10 +12,8 @@ async function fetchHomepagePackages() {
 }
 
 export default function HomePage() {
-  const [user, setUser] = useState<any>(null);
   const [packages, setPackages] = useState<any[]>([]);
   useEffect(() => {
-    fetchMe().then(setUser).catch(() => setUser(null));
     fetchHomepagePackages().then(setPackages);
   }, []);
   return (
@@ -32,22 +29,9 @@ export default function HomePage() {
               NOMAD helps you discover nearby places that match your interests, build efficient day plans, and
               arrange travel assistance—all in one platform.
             </p>
-            <div className="flex gap-3 items-center">
+            <div className="flex flex-wrap gap-3 items-center">
               <a className="btn-primary" href="/trip-planner">Start Planning</a>
               <a className="btn-outline" href="/map">View Map</a>
-              {/* Profile photo circle on home page */}
-              {user && (
-                <div className="ml-4 flex items-center gap-2">
-                  <div className="w-10 h-10 rounded-full overflow-hidden border border-slate-300 bg-slate-100 flex items-center justify-center">
-                    <img
-                      src={user.profilePhotoUrl ? user.profilePhotoUrl : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.email)}&background=4f6cff&color=fff&rounded=true&size=40`}
-                      alt="Profile"
-                      className="object-cover w-full h-full"
-                    />
-                  </div>
-                  <span className="font-semibold text-slate-700">{user.email.split("@")[0]}</span>
-                </div>
-              )}
             </div>
           </div>
           <div className="card p-8">
@@ -76,15 +60,18 @@ export default function HomePage() {
       <section className="section pb-16">
         <div className="mb-6">
           <h3 className="text-2xl font-semibold">Nearby Attractions</h3>
-          <p className="text-sm text-slate-600">Places near you — explore and add to your tour.</p>
+          <p className="text-sm text-slate-600">Places near you — tap Explore to see details and location on the map.</p>
         </div>
         <PlacesList />
       </section>
 
       <section className="section pb-16">
         <div className="mb-6">
-          <h3 className="text-2xl font-semibold">Featured Weekend Packages</h3>
-          <p className="text-sm opacity-70">Choose a curated weekend package and enroll instantly.</p>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <h3 className="text-2xl font-semibold">Featured Weekend Packages</h3>
+            <a href="/packages" className="btn-outline shrink-0">Explore more packages</a>
+          </div>
+          <p className="text-sm opacity-70 mt-1">Choose a curated weekend package and enroll instantly.</p>
         </div>
         <div className="grid md:grid-cols-3 gap-6">
           {packages.map((p: any) => (
@@ -101,9 +88,6 @@ export default function HomePage() {
             </div>
           ))}
         </div>
-      <div className="mt-4 text-right">
-        <a href="/packages" className="btn-outline">Explore more packages</a>
-      </div>
       </section>
     </div>
   );

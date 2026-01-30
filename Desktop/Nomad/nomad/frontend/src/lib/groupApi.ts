@@ -19,6 +19,7 @@ export type TripGroupMemberResponse = {
   tripStatus: string;
   joinedAt: string;
   travelDate?: string | number[];
+  profilePhotoUrl?: string | null;
 };
 
 export type TripGroupCreatePayload = {

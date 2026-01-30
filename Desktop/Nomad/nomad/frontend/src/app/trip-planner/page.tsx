@@ -1,14 +1,15 @@
 "use client";
 
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-// Dynamically import LocationPicker to avoid SSR issues
 const LocationPicker = dynamic(() => import("@/components/LocationPicker"), { ssr: false });
 
 import ProtectedPage from "@/components/ProtectedPage";
 import { fetchMe } from "@/lib/authApi";
-import { createTrip, previewPlans } from "@/lib/tripApi";
+import { fetchNearbyPlaces, type PlaceNearby } from "@/lib/placeApi";
+import { createTrip, createTripFromPlaces, previewPlans } from "@/lib/tripApi";
 
 export default function TripPlannerPage() {
   const router = useRouter();
@@ -21,7 +22,6 @@ export default function TripPlannerPage() {
     pickupRequired: false,
     userLatitude: "",
     userLongitude: "",
-    groupSize: "",
     travelDate: "",
   });
   const [userLoaded, setUserLoaded] = useState(false);
@@ -34,6 +34,15 @@ export default function TripPlannerPage() {
   const [error, setError] = useState<string | null>(null);
   const [cityLocked, setCityLocked] = useState(false);
   const [showPlans, setShowPlans] = useState(false);
+
+  // Create my trip: select places and create optimized trip
+  const [mode, setMode] = useState<"preview" | "custom">("preview");
+  const [allPlaces, setAllPlaces] = useState<PlaceNearby[]>([]);
+  const [selectedPlaceIds, setSelectedPlaceIds] = useState<number[]>([]);
+  const [loadingPlaces, setLoadingPlaces] = useState(false);
+  const [loadingCreateFromPlaces, setLoadingCreateFromPlaces] = useState(false);
+  /** When false, show only plans matching selected interest; when true, show all plan types. */
+  const [exploreAllPlans, setExploreAllPlans] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -134,7 +143,6 @@ export default function TripPlannerPage() {
       pickupRequired: form.pickupRequired,
       userLatitude: form.userLatitude ? Number(form.userLatitude) : undefined,
       userLongitude: form.userLongitude ? Number(form.userLongitude) : undefined,
-      groupSize: form.groupSize ? Number(form.groupSize) : undefined,
       travelDate: form.travelDate || undefined,
       selectedPlanType: selectedPlanType,
     };
@@ -151,17 +159,110 @@ export default function TripPlannerPage() {
     }
   };
 
-  // Removed handleLoadUser and related logic
+  const handleGetPlaces = async () => {
+    setError(null);
+    setAllPlaces([]);
+    if (!form.city?.trim()) {
+      setError("Please enter a city.");
+      return;
+    }
+    const lat = form.userLatitude ? Number(form.userLatitude) : 12.9716;
+    const lng = form.userLongitude ? Number(form.userLongitude) : 77.5946;
+    setLoadingPlaces(true);
+    try {
+      const places = await fetchNearbyPlaces({
+        city: form.city.trim(),
+        latitude: lat,
+        longitude: lng,
+        radiusKm: 100,
+        limit: 50,
+      });
+      setAllPlaces(places || []);
+      if (!places?.length) setError("No places found for this city.");
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Failed to load places.");
+    } finally {
+      setLoadingPlaces(false);
+    }
+  };
+
+  const togglePlaceInPlan = (placeId: number) => {
+    setSelectedPlaceIds((prev) =>
+      prev.includes(placeId) ? prev.filter((id) => id !== placeId) : [...prev, placeId]
+    );
+  };
+
+  const handleCreateFromPlaces = async () => {
+    if (!form.userId) {
+      setError("User not loaded. Please log in.");
+      return;
+    }
+    if (!form.travelDate) {
+      setError("Please select a travel date.");
+      return;
+    }
+    if (selectedPlaceIds.length === 0) {
+      setError("Add at least one place to your plan.");
+      return;
+    }
+    setError(null);
+    setLoadingCreateFromPlaces(true);
+    try {
+      const data = await createTripFromPlaces({
+        userId: Number(form.userId),
+        travelDate: form.travelDate,
+        city: form.city || undefined,
+        userLatitude: form.userLatitude ? Number(form.userLatitude) : undefined,
+        userLongitude: form.userLongitude ? Number(form.userLongitude) : undefined,
+        placeIds: selectedPlaceIds,
+      });
+      setTrip(data);
+      setResult(`Trip created! ID: ${data.tripRequestId}. We've optimized the route for you.`);
+      setSelectedPlaceIds([]);
+      setAllPlaces([]);
+      if (data.tripRequestId) {
+        router.push(`/trip-summary/${data.tripRequestId}`);
+      }
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Failed to create trip.");
+    } finally {
+      setLoadingCreateFromPlaces(false);
+    }
+  };
 
   return (
     <ProtectedPage>
       <div className="section py-12">
         <div className="card p-8 space-y-6">
         <div>
-          <h2 className="text-2xl font-bold">Trip Planner</h2>
-          <p className="text-slate-600">Create a weekend trip request with preferences.</p>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Trip Planner</h2>
+          <p className="text-slate-600 dark:text-slate-400 mt-1">Create a weekend trip from prefixed plans or pick your own places for an optimized route.</p>
         </div>
 
+        {/* Mode: Preview Plans vs Create my trip */}
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => { setMode("preview"); setError(null); setShowPlans(false); setAllPlaces([]); setSelectedPlaceIds([]); }}
+            className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+              mode === "preview" ? "bg-emerald-600 text-white" : "bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600"
+            }`}
+          >
+            Preview Plans
+          </button>
+          <button
+            type="button"
+            onClick={() => { setMode("custom"); setError(null); setShowPlans(false); setPlanOptions([]); }}
+            className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+              mode === "custom" ? "bg-emerald-600 text-white" : "bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600"
+            }`}
+          >
+            Create my trip
+          </button>
+        </div>
+
+        {mode === "preview" && (
+        <>
         <div className="grid md:grid-cols-2 gap-4">
                     <label className="space-y-2">
                       <span className="text-sm font-semibold">Travel Date <span className="text-red-500">*</span></span>
@@ -197,8 +298,11 @@ export default function TripPlannerPage() {
             </select>
           </label>
           <label className="space-y-2">
-            <span className="text-sm font-semibold">Interest</span>
-            <select name="interest" value={form.interest} onChange={handleChange} className="w-full border rounded-xl px-4 py-2">
+            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Interest</span>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Plans will match this interest. Use &quot;Explore all plans&quot; below to see every type.
+            </p>
+            <select name="interest" value={form.interest} onChange={handleChange} className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-2 bg-transparent">
               {[
                 "FOOD",
                 "CULTURE",
@@ -215,15 +319,16 @@ export default function TripPlannerPage() {
             </select>
           </label>
           <label className="space-y-2">
-            <span className="text-sm font-semibold">Travel Mode</span>
-            <select name="travelMode" value={form.travelMode} onChange={handleChange} className="w-full border rounded-xl px-4 py-2">
+            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Travel Mode</span>
+            <select name="travelMode" value={form.travelMode} onChange={handleChange} className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-2 bg-transparent">
               <option value="SOLO">Solo</option>
               <option value="GROUP">Group</option>
             </select>
-          </label>
-          <label className="space-y-2">
-            <span className="text-sm font-semibold">Group Size (optional)</span>
-            <input name="groupSize" value={form.groupSize} onChange={handleChange} className="w-full border rounded-xl px-4 py-2" />
+            {form.travelMode === "GROUP" && (
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                You&apos;ll be matched with a group for this trip. After creating the trip, you can see who your groupmates are on the trip summary.
+              </p>
+            )}
           </label>
           <div className="space-y-2 col-span-2">
             <span className="text-sm font-semibold">Location (select on map)</span>
@@ -265,15 +370,35 @@ export default function TripPlannerPage() {
           )}
         </div>
         
-        {result && <p className="text-sm text-green-600 font-semibold">{result}</p>}
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        
-        {/* Show plan options after preview */}
-        {showPlans && planOptions.length > 0 && (
-          <div className="mt-6">
-            <h3 className="text-lg font-semibold mb-4">Select a Plan</h3>
+        {/* Show plan options after preview — by default only plans matching interest; "Explore all plans" shows every type */}
+        {showPlans && planOptions.length > 0 && (() => {
+          const interestMatch = `${form.interest} Only`;
+          const displayedPlans = exploreAllPlans
+            ? planOptions
+            : planOptions.filter((p: any) => p.type === interestMatch);
+          return (
+          <div className="mt-6 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                {exploreAllPlans ? "All plans" : `Plans for ${form.interest}`}
+              </h3>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={exploreAllPlans}
+                  onChange={(e) => setExploreAllPlans(e.target.checked)}
+                  className="rounded border-slate-300"
+                />
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Explore all plans</span>
+              </label>
+            </div>
+            {displayedPlans.length === 0 ? (
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                No plans for {form.interest}. Check &quot;Explore all plans&quot; to see other types.
+              </p>
+            ) : (
             <div className="grid md:grid-cols-2 gap-4">
-              {planOptions.map((plan: any, idx: number) => (
+              {displayedPlans.map((plan: any, idx: number) => (
                 <div 
                   key={idx} 
                   className={`card p-4 border cursor-pointer transition-all ${
@@ -327,6 +452,7 @@ export default function TripPlannerPage() {
                 </div>
               ))}
             </div>
+            )}
             
             {/* Show details for selected plan */}
             {selectedPlanType && (
@@ -367,13 +493,14 @@ export default function TripPlannerPage() {
               </div>
             )}
           </div>
-        )}
+          );
+        })()}
         
-        {/* Show created trip info */}
-        {trip && (
-          <div className="mt-6 card p-4 bg-green-50 border border-green-200">
-            <h4 className="font-semibold text-green-800 mb-2">Trip Created Successfully!</h4>
-            <p className="text-sm text-green-700 mb-3">
+        {/* Show created trip info (preview mode) */}
+        {trip && mode === "preview" && (
+          <div className="mt-6 card p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+            <h4 className="font-semibold text-green-800 dark:text-green-200 mb-2">Trip Created Successfully!</h4>
+            <p className="text-sm text-green-700 dark:text-green-300 mb-3">
               Trip ID: {trip.tripRequestId} • Status: {trip.status}
             </p>
             <button
@@ -384,6 +511,122 @@ export default function TripPlannerPage() {
             </button>
           </div>
         )}
+        </>
+        )}
+
+        {mode === "custom" && (
+          <div className="space-y-6">
+            <div className="grid md:grid-cols-2 gap-4">
+              <label className="space-y-2">
+                <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Travel Date <span className="text-red-500">*</span></span>
+                <input
+                  type="date"
+                  name="travelDate"
+                  value={form.travelDate}
+                  onChange={handleChange}
+                  className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-2 bg-transparent"
+                  min={new Date().toISOString().split("T")[0]}
+                />
+              </label>
+              <label className="space-y-2">
+                <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">City</span>
+                <input
+                  name="city"
+                  value={form.city}
+                  onChange={handleChange}
+                  className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-2 bg-transparent"
+                  placeholder="e.g. Bengaluru"
+                />
+              </label>
+            </div>
+            <div className="space-y-2">
+              <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Your location (for distance & route)</span>
+              <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/40 w-full" style={{ height: 300, minHeight: 300 }}>
+                <LocationPicker
+                  lat={Number(form.userLatitude) || 12.9716}
+                  lng={Number(form.userLongitude) || 77.5946}
+                  setLat={(lat: number) => setForm((prev) => ({ ...prev, userLatitude: lat.toString() }))}
+                  setLng={(lng: number) => setForm((prev) => ({ ...prev, userLongitude: lng.toString() }))}
+                />
+              </div>
+            </div>
+            <div className="pt-2">
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleGetPlaces}
+                disabled={loadingPlaces}
+              >
+                {loadingPlaces ? "Loading places…" : "Get places"}
+              </button>
+            </div>
+
+            {allPlaces.length > 0 && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">All places — add to your plan</h3>
+                <div className="grid sm:grid-cols-2 gap-3 max-h-80 overflow-y-auto">
+                  {allPlaces.map((place) => (
+                    <div
+                      key={place.id}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 dark:border-slate-700 p-3 bg-slate-50 dark:bg-slate-800/40"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-slate-900 dark:text-white truncate">{place.name}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          {place.distanceKm != null ? `${place.distanceKm.toFixed(1)} km` : ""}
+                          {place.rating != null ? ` · ⭐ ${place.rating}` : ""}
+                          {place.category ? ` · ${place.category}` : ""}
+                        </p>
+                      </div>
+                      <div className="flex gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => togglePlaceInPlan(place.id)}
+                          className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
+                            selectedPlaceIds.includes(place.id)
+                              ? "bg-emerald-600 text-white"
+                              : "btn-outline"
+                          }`}
+                        >
+                          {selectedPlaceIds.includes(place.id) ? "Added" : "Add"}
+                        </button>
+                        <Link
+                          href={`/place/${place.id}`}
+                          className="btn-outline text-sm py-1.5 px-3 rounded-lg"
+                          target="_blank"
+                        >
+                          Explore
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {selectedPlaceIds.length > 0 && (
+              <div className="card p-4 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-xl space-y-3">
+                <h3 className="font-semibold text-slate-900 dark:text-white">
+                  My plan ({selectedPlaceIds.length} place{selectedPlaceIds.length !== 1 ? "s" : ""})
+                </h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  We&apos;ll optimize the route for these places. Estimated cost will be shown after creation.
+                </p>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={handleCreateFromPlaces}
+                  disabled={loadingCreateFromPlaces || !form.travelDate}
+                >
+                  {loadingCreateFromPlaces ? "Creating…" : "Create trip"}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {result && <p className="text-sm text-green-600 dark:text-green-400 font-semibold">{result}</p>}
+        {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
         </div>
       </div>
     </ProtectedPage>

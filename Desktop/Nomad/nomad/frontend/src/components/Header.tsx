@@ -45,6 +45,7 @@ export default function Header() {
     const savedTheme = localStorage.getItem("theme") || "light";
     setTheme(savedTheme);
     document.documentElement.setAttribute("data-theme", savedTheme);
+    document.documentElement.classList.toggle("dark", savedTheme === "dark");
   }, []);
 
   const logout = () => {
@@ -59,10 +60,11 @@ export default function Header() {
     setTheme(newTheme);
     localStorage.setItem("theme", newTheme);
     document.documentElement.setAttribute("data-theme", newTheme);
+    document.documentElement.classList.toggle("dark", newTheme === "dark");
   };
 
   const linkClass =
-    "text-sm font-semibold text-slate-600 hover:text-slate-900 transition";
+    "text-sm font-semibold text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-slate-100 transition";
 
   return (
     <header
@@ -94,9 +96,6 @@ export default function Header() {
             </Link>
             <Link href="/map" className={linkClass}>
               Map
-            </Link>
-            <Link href="/route-view" className={linkClass}>
-              Route
             </Link>
             <Link href="/trips" className={linkClass}>
               Trips

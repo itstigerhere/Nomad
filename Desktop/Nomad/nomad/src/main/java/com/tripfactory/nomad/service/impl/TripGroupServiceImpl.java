@@ -71,6 +71,7 @@ public class TripGroupServiceImpl implements TripGroupService {
             response.setInterestType(trip.getUser().getInterestType());
             response.setTripStatus(trip.getStatus());
             response.setJoinedAt(trip.getCreatedAt());
+            response.setProfilePhotoUrl(trip.getUser().getProfilePhotoUrl());
             return response;
         }).collect(Collectors.toList());
     }

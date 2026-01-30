@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 import com.tripfactory.nomad.api.dto.PlaceNearbyResponse;
+import com.tripfactory.nomad.api.dto.PlaceResponse;
 import com.tripfactory.nomad.domain.entity.Place;
 import com.tripfactory.nomad.domain.enums.InterestType;
 import com.tripfactory.nomad.repository.PlaceRepository;
@@ -19,6 +20,24 @@ import lombok.RequiredArgsConstructor;
 public class PlaceServiceImpl implements PlaceService {
 
     private final PlaceRepository placeRepository;
+
+    @Override
+    public PlaceResponse getById(Long id) {
+        Place place = placeRepository.findById(id)
+                .orElseThrow(() -> new com.tripfactory.nomad.service.exception.ResourceNotFoundException("Place not found"));
+        PlaceResponse response = new PlaceResponse();
+        response.setId(place.getId());
+        response.setName(place.getName());
+        response.setCity(place.getCity());
+        response.setLatitude(place.getLatitude());
+        response.setLongitude(place.getLongitude());
+        response.setCategory(place.getCategory());
+        response.setRating(place.getRating());
+        response.setDescription(place.getDescription());
+        response.setImageUrl(place.getImageUrl());
+        response.setOpeningHours(place.getOpeningHours());
+        return response;
+    }
 
     @Override
     public List<PlaceNearbyResponse> getNearbyPlaces(String city, double userLat, double userLon, InterestType interest,
@@ -60,6 +79,9 @@ public class PlaceServiceImpl implements PlaceService {
         response.setCategory(place.getCategory());
         response.setRating(place.getRating());
         response.setDistanceKm(haversineKm(userLat, userLon, place.getLatitude(), place.getLongitude()));
+        response.setDescription(place.getDescription());
+        response.setImageUrl(place.getImageUrl());
+        response.setOpeningHours(place.getOpeningHours());
         return response;
     }
 

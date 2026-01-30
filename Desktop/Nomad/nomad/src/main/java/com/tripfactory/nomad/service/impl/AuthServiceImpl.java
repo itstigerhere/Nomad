@@ -1,5 +1,10 @@
 package com.tripfactory.nomad.service.impl;
 
+import java.time.Instant;
+import java.util.Optional;
+import java.util.UUID;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -10,9 +15,12 @@ import com.tripfactory.nomad.api.dto.AuthLoginRequest;
 import com.tripfactory.nomad.api.dto.AuthRegisterRequest;
 import com.tripfactory.nomad.api.dto.AuthResponse;
 import com.tripfactory.nomad.api.dto.UserResponse;
+import com.tripfactory.nomad.domain.entity.PasswordResetToken;
 import com.tripfactory.nomad.domain.entity.User;
+import com.tripfactory.nomad.repository.PasswordResetTokenRepository;
 import com.tripfactory.nomad.repository.UserRepository;
 import com.tripfactory.nomad.service.AuthService;
+import com.tripfactory.nomad.service.NotificationService;
 import com.tripfactory.nomad.service.exception.BadRequestException;
 import com.tripfactory.nomad.service.exception.ResourceNotFoundException;
 import com.tripfactory.nomad.service.jwt.JwtService;
@@ -23,10 +31,17 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
+    private static final int RESET_TOKEN_VALIDITY_HOURS = 1;
+
     private final UserRepository userRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
+    private final NotificationService notificationService;
+
+    @Value("${nomad.frontend-url:http://localhost:3000}")
+    private String frontendUrl;
 
     @Override
     public AuthResponse register(AuthRegisterRequest request) {
@@ -85,6 +100,39 @@ public class AuthServiceImpl implements AuthService {
         return toResponse(user);
     }
 
+    @Override
+    public void requestPasswordReset(String email) {
+        Optional<User> userOpt = userRepository.findByEmail(email.trim());
+        if (userOpt.isEmpty()) {
+            return;
+        }
+        User user = userOpt.get();
+        passwordResetTokenRepository.deleteByUserId(user.getId());
+        String token = UUID.randomUUID().toString().replace("-", "");
+        PasswordResetToken resetToken = new PasswordResetToken();
+        resetToken.setUser(user);
+        resetToken.setToken(token);
+        resetToken.setExpiresAt(Instant.now().plusSeconds(RESET_TOKEN_VALIDITY_HOURS * 3600L));
+        passwordResetTokenRepository.save(resetToken);
+        String resetLink = frontendUrl + "/auth/reset-password?token=" + token;
+        notificationService.sendEmail(user.getEmail(), "NOMAD – Reset your password",
+            "Hi " + user.getName() + ",\n\nClick the link below to reset your password (valid for " + RESET_TOKEN_VALIDITY_HOURS + " hour(s)):\n\n" + resetLink + "\n\nIf you didn't request this, ignore this email.");
+    }
+
+    @Override
+    public void resetPassword(String token, String newPassword) {
+        PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(token)
+                .orElseThrow(() -> new BadRequestException("Invalid or expired reset link"));
+        if (resetToken.getExpiresAt().isBefore(Instant.now())) {
+            passwordResetTokenRepository.delete(resetToken);
+            throw new BadRequestException("Reset link has expired");
+        }
+        User user = resetToken.getUser();
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+        passwordResetTokenRepository.delete(resetToken);
+    }
+
     private UserResponse toResponse(User user) {
         UserResponse response = new UserResponse();
         response.setId(user.getId());
@@ -98,6 +146,7 @@ public class AuthServiceImpl implements AuthService {
         response.setTravelPreference(user.getTravelPreference());
         response.setRole(user.getRole());
         response.setCreatedAt(user.getCreatedAt());
+        response.setProfilePhotoUrl(user.getProfilePhotoUrl());
         return response;
     }
 }

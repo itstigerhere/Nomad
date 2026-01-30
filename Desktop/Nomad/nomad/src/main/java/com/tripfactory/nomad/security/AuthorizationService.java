@@ -6,7 +6,9 @@ import org.springframework.stereotype.Component;
 
 import com.tripfactory.nomad.domain.entity.TripRequest;
 import com.tripfactory.nomad.domain.entity.User;
+import com.tripfactory.nomad.domain.enums.PaymentStatus;
 import com.tripfactory.nomad.domain.enums.UserRole;
+import com.tripfactory.nomad.repository.PaymentRepository;
 import com.tripfactory.nomad.repository.TripRequestRepository;
 import com.tripfactory.nomad.repository.UserRepository;
 
@@ -18,6 +20,7 @@ public class AuthorizationService {
 
     private final UserRepository userRepository;
     private final TripRequestRepository tripRequestRepository;
+    private final PaymentRepository paymentRepository;
 
     public boolean canAccessUser(Long userId) {
         User current = getCurrentUser();
@@ -37,6 +40,13 @@ public class AuthorizationService {
         return trip != null && trip.getUser().getId().equals(current.getId());
     }
 
+    /** Only the user who booked (trip owner with successful payment) can submit a trip review. */
+    public boolean canReviewTrip(Long tripRequestId) {
+        if (tripRequestId == null) return false;
+        if (!canAccessTrip(tripRequestId)) return false;
+        return paymentRepository.existsByTripRequestIdAndPaymentStatus(tripRequestId, PaymentStatus.CAPTURED);
+    }
+
     public boolean canAccessGroup(Long groupId) {
         User current = getCurrentUser();
         if (current == null) {
@@ -46,6 +56,11 @@ public class AuthorizationService {
             return true;
         }
         return tripRequestRepository.existsByGroupIdAndUserId(groupId, current.getId());
+    }
+
+    public Long getCurrentUserId() {
+        User user = getCurrentUser();
+        return user != null ? user.getId() : null;
     }
 
     private User getCurrentUser() {

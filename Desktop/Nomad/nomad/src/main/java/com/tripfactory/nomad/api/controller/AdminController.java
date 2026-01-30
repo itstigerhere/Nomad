@@ -17,14 +17,20 @@ import org.springframework.lang.NonNull;
 
 import jakarta.validation.Valid;
 
+import com.tripfactory.nomad.api.dto.AdminDashboardResponse;
 import com.tripfactory.nomad.api.dto.PlaceCreateRequest;
 import com.tripfactory.nomad.api.dto.PlaceResponse;
 import com.tripfactory.nomad.api.dto.VehicleCreateRequest;
 import com.tripfactory.nomad.domain.entity.Place;
+import com.tripfactory.nomad.domain.entity.TripRequest;
 import com.tripfactory.nomad.domain.entity.Vehicle;
 import com.tripfactory.nomad.repository.PlaceRepository;
+import com.tripfactory.nomad.repository.TripRequestRepository;
+import com.tripfactory.nomad.repository.UserRepository;
 import com.tripfactory.nomad.repository.VehicleRepository;
 import com.tripfactory.nomad.service.exception.ResourceNotFoundException;
+
+import org.springframework.data.domain.PageRequest;
 
 import lombok.RequiredArgsConstructor;
 
@@ -34,8 +40,12 @@ import lombok.RequiredArgsConstructor;
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminController {
 
+    private static final int RECENT_TRIPS_LIMIT = 10;
+
     private final PlaceRepository placeRepository;
     private final VehicleRepository vehicleRepository;
+    private final TripRequestRepository tripRequestRepository;
+    private final UserRepository userRepository;
 
     @PostMapping("/places")
     public ResponseEntity<PlaceResponse> createPlace(@Valid @RequestBody PlaceCreateRequest request) {
@@ -46,6 +56,9 @@ public class AdminController {
         place.setLongitude(request.getLongitude());
         place.setCategory(request.getCategory());
         place.setRating(request.getRating());
+        place.setDescription(request.getDescription());
+        place.setImageUrl(request.getImageUrl());
+        place.setOpeningHours(request.getOpeningHours());
 
         Place saved = placeRepository.save(place);
         return new ResponseEntity<>(toResponse(saved), HttpStatus.CREATED);
@@ -92,6 +105,34 @@ public class AdminController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/dashboard")
+    public ResponseEntity<AdminDashboardResponse> getDashboard() {
+        AdminDashboardResponse response = new AdminDashboardResponse();
+        response.setUserCount(userRepository.count());
+        response.setTripCount(tripRequestRepository.count());
+        response.setPlaceCount(placeRepository.count());
+        List<TripRequest> recent = tripRequestRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(0, RECENT_TRIPS_LIMIT));
+        response.setRecentTrips(recent.stream().map(this::toRecentTripSummary).toList());
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/trips")
+    public ResponseEntity<List<AdminDashboardResponse.RecentTripSummary>> getTrips() {
+        List<TripRequest> all = tripRequestRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(0, 500));
+        return ResponseEntity.ok(all.stream().map(this::toRecentTripSummary).toList());
+    }
+
+    private AdminDashboardResponse.RecentTripSummary toRecentTripSummary(TripRequest tr) {
+        AdminDashboardResponse.RecentTripSummary s = new AdminDashboardResponse.RecentTripSummary();
+        s.setTripRequestId(tr.getId());
+        s.setCity(tr.getCity());
+        s.setStatus(tr.getStatus());
+        s.setUserId(tr.getUser() != null ? tr.getUser().getId() : null);
+        s.setUserEmail(tr.getUser() != null ? tr.getUser().getEmail() : null);
+        s.setCreatedAt(tr.getCreatedAt());
+        return s;
+    }
+
     private PlaceResponse toResponse(Place place) {
         PlaceResponse response = new PlaceResponse();
         response.setId(place.getId());
@@ -101,6 +142,9 @@ public class AdminController {
         response.setLongitude(place.getLongitude());
         response.setCategory(place.getCategory());
         response.setRating(place.getRating());
+        response.setDescription(place.getDescription());
+        response.setImageUrl(place.getImageUrl());
+        response.setOpeningHours(place.getOpeningHours());
         return response;
     }
 }

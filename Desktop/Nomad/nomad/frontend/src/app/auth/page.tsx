@@ -104,7 +104,14 @@ export default function AuthPage() {
             </>
           )}
         </div>
-        <button className="btn-primary" onClick={handleSubmit}>{mode === "register" ? "Register" : "Login"}</button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button className="btn-primary" onClick={handleSubmit}>{mode === "register" ? "Register" : "Login"}</button>
+          {mode === "login" && (
+            <a href="/auth/forgot-password" className="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100">
+              Forgot password?
+            </a>
+          )}
+        </div>
         {token && <p className="text-sm text-slate-600">Token saved (copy manually for now)</p>}
         {error && <p className="text-sm text-red-600">{error}</p>}
       </div>

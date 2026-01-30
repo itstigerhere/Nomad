@@ -12,4 +12,10 @@ public interface AuthService {
     AuthResponse login(AuthLoginRequest request);
 
     UserResponse me(String email);
+
+    /** Send password reset link to email if user exists. Always returns success to avoid email enumeration. */
+    void requestPasswordReset(String email);
+
+    /** Reset password using token from email link. */
+    void resetPassword(String token, String newPassword);
 }

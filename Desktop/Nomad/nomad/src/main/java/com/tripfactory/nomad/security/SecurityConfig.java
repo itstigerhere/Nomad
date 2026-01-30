@@ -2,6 +2,7 @@ package com.tripfactory.nomad.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.Customizer;
@@ -43,6 +44,9 @@ public class SecurityConfig {
                     "/actuator/**",
                     "/"
                 ).permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/reviews/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/place-reviews/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/users/photo/**").permitAll()
                 .requestMatchers("/api/trips/**").authenticated()
                 .anyRequest().authenticated())
             .authenticationProvider(authenticationProvider())

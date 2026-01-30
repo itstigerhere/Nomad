@@ -20,7 +20,9 @@ const TripsPage: React.FC = () => {
       setError(null);
       try {
         const data = await getMyTrips();
-        setEnrolledTrips(data.filter((t) => t.status === "PLANNED" || t.status === "IN_PROGRESS"));
+        // Enrolled: REQUESTED/PAYMENT_PENDING (await payment), CONFIRMED/PLANNED (confirmed/legacy)
+        const active = ["REQUESTED", "PAYMENT_PENDING", "CONFIRMED", "PLANNED", "IN_PROGRESS"];
+        setEnrolledTrips(data.filter((t) => active.includes(t.status || "")));
         setPastTrips(data.filter((t) => t.status === "COMPLETED" || t.status === "CANCELLED"));
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Unknown error");
@@ -41,13 +43,24 @@ const TripsPage: React.FC = () => {
         <ul className="space-y-3">
           {enrolledTrips.length === 0 && <li className="text-gray-500">No enrolled trips.</li>}
           {enrolledTrips.map((trip) => (
-             <Link key={trip.tripRequestId} href={`/trip-summary/${trip.tripRequestId}`} className="block">
-               <li className="border rounded-lg p-4 flex justify-between items-center hover:shadow cursor-pointer">
-                 <span className="font-semibold text-blue-600">{formatTripId(trip.tripRequestId)}</span>
-                 <span className="px-2 py-1 rounded bg-green-100 text-xs font-medium">{trip.status}</span>
+             <li key={trip.tripRequestId} className="border rounded-lg p-4 flex justify-between items-center hover:shadow">
+               <Link href={`/trip-summary/${trip.tripRequestId}`} className="font-semibold text-blue-600 hover:underline">
+                 {formatTripId(trip.tripRequestId)}
+               </Link>
+               <div className="flex items-center gap-2">
+                 {(trip.status === "REQUESTED" || trip.status === "PAYMENT_PENDING") ? (
+                   <Link
+                     href={`/payment?tripRequestId=${trip.tripRequestId}&prefillAmount=${trip.estimatedCost ?? ""}`}
+                     className="px-2 py-1 rounded bg-amber-100 text-amber-800 text-xs font-medium hover:bg-amber-200"
+                   >
+                     Pay to confirm
+                   </Link>
+                 ) : (
+                   <span className="px-2 py-1 rounded bg-green-100 text-xs font-medium">{trip.status}</span>
+                 )}
                  <span className="font-bold">₹ {trip.estimatedCost ?? 0}</span>
-               </li>
-             </Link>
+               </div>
+             </li>
           ))}
         </ul>
       </div>

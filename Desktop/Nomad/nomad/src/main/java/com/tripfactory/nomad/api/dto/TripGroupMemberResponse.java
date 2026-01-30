@@ -21,4 +21,6 @@ public class TripGroupMemberResponse {
     private InterestType interestType;
     private TripStatus tripStatus;
     private LocalDateTime joinedAt;
+    /** Profile photo filename or path (e.g. from /api/users/photo/{filename}) */
+    private String profilePhotoUrl;
 }

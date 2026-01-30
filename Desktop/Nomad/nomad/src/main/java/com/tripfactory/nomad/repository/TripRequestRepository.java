@@ -3,6 +3,7 @@ package com.tripfactory.nomad.repository;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -12,6 +13,8 @@ import com.tripfactory.nomad.domain.entity.TripRequest;
 public interface TripRequestRepository extends JpaRepository<TripRequest, Long> {
 
     List<TripRequest> findByUserId(Long userId);
+
+    List<TripRequest> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
     Optional<TripRequest> findByShareToken(String shareToken);
 

@@ -18,4 +18,7 @@ public class PlaceNearbyResponse {
     private InterestType category;
     private Double rating;
     private Double distanceKm;
+    private String description;
+    private String imageUrl;
+    private String openingHours;
 }

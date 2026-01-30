@@ -148,7 +148,7 @@ export default function PlacesList() {
   return (
     <div className="grid md:grid-cols-2 gap-4">
       {places.map((p) => (
-        <PlaceCard key={p.id} place={p} onAdd={handleAdd} />
+        <PlaceCard key={p.id} place={p} onAdd={handleAdd} showAddToTour={false} />
       ))}
     </div>
   );

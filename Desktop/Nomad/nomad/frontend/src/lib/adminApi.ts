@@ -7,6 +7,9 @@ export type PlaceCreatePayload = {
   longitude: number;
   category: string;
   rating: number;
+  description?: string;
+  imageUrl?: string;
+  openingHours?: string;
 };
 
 export type VehicleCreatePayload = {

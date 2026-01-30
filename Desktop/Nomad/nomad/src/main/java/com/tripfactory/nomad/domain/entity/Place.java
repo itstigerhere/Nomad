@@ -43,4 +43,13 @@ public class Place {
 
     @Column(nullable = false)
     private Double rating;
+
+    @Column(length = 2000)
+    private String description;
+
+    @Column(name = "image_url", length = 512)
+    private String imageUrl;
+
+    @Column(name = "opening_hours", length = 256)
+    private String openingHours;
 }

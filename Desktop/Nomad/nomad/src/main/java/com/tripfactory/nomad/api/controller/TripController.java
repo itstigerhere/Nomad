@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.tripfactory.nomad.api.dto.PlanPreviewRequest;
 import com.tripfactory.nomad.api.dto.PlanPreviewResponse;
+import com.tripfactory.nomad.api.dto.TripCreatePlacesRequest;
 import com.tripfactory.nomad.api.dto.TripCreateRequest;
 import com.tripfactory.nomad.api.dto.TripResponse;
 import com.tripfactory.nomad.domain.entity.User;
@@ -44,6 +46,11 @@ public class TripController {
         return new ResponseEntity<>(tripService.createTrip(request), HttpStatus.CREATED);
     }
 
+    @PostMapping("/create-from-places")
+    public ResponseEntity<TripResponse> createTripFromPlaces(@Valid @RequestBody TripCreatePlacesRequest request) {
+        return new ResponseEntity<>(tripService.createTripFromPlaces(request), HttpStatus.CREATED);
+    }
+
     @GetMapping("/me")
     public ResponseEntity<List<TripResponse>> getMyTrips() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -57,11 +64,17 @@ public class TripController {
         return ResponseEntity.ok(tripService.getTripsByUser(user.getId()));
     }
 
-    // Path variable endpoint should come last
-    @GetMapping("/{id}")
+    // Path variable endpoint last — id must be numeric so "create-from-places" is not matched
+    @GetMapping("/{id:\\d+}")
     @PreAuthorize("@authz.canAccessTrip(#id)")
     public ResponseEntity<TripResponse> getTrip(@PathVariable Long id) {
         return ResponseEntity.ok(tripService.getTrip(id));
+    }
+
+    @PatchMapping("/{id:\\d+}/cancel")
+    @PreAuthorize("@authz.canAccessTrip(#id)")
+    public ResponseEntity<TripResponse> cancelTrip(@PathVariable Long id) {
+        return ResponseEntity.ok(tripService.cancelTrip(id));
     }
 
     @GetMapping("/user/{userId}")
