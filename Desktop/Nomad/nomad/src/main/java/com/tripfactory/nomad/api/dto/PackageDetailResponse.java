@@ -19,5 +19,8 @@ public class PackageDetailResponse {
     private List<PlaceResponse> places;
     private List<String> activities;
     private Double averageRating;
+    private Integer maxCapacity = 20; // Default max capacity per package
+    private Integer enrolledCount = 0; // Number of people enrolled
+    private Integer availableSeats; // Calculated: maxCapacity - enrolledCount
     // package-level reviews can be added later
 }

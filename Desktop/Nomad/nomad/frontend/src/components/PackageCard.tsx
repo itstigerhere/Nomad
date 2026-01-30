@@ -58,9 +58,28 @@ export default function PackageCard({ pkg }: Props) {
   }
 
   const imgSrc = imgError ? DEFAULT_PACKAGE_IMAGE : getPackageImageUrl(pkg);
+  
+  const availableSeats = pkg.availableSeats ?? (pkg.maxCapacity ?? 20);
+  const maxCapacity = pkg.maxCapacity ?? 20;
+  const seatsPercentage = (availableSeats / maxCapacity) * 100;
+  const isLowAvailability = seatsPercentage <= 30;
+  const isCritical = seatsPercentage <= 15;
 
   return (
-    <div className="card p-4">
+    <div className="card p-4 relative">
+      {isLowAvailability && (
+        <div className="absolute top-2 right-2 z-10">
+          <span 
+            className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold shadow-lg animate-pulse"
+            style={{ 
+              background: isCritical ? '#ef4444' : '#f59e0b',
+              color: 'white'
+            }}
+          >
+            {isCritical ? '🔥' : '⚡'} {availableSeats} Seats Left!
+          </span>
+        </div>
+      )}
       <img
         src={imgSrc}
         alt={pkg.name}
@@ -70,6 +89,30 @@ export default function PackageCard({ pkg }: Props) {
       <div className="py-3">
         <h3 className="text-lg font-semibold">{pkg.name}</h3>
         <p className="text-sm opacity-70">{pkg.shortDescription}</p>
+        
+        {/* Seat Availability Indicator */}
+        <div className="mt-3 mb-2 space-y-2">
+          <div className="flex justify-between items-center text-xs">
+            <span className="font-medium" style={{ color: isLowAvailability ? (isCritical ? '#ef4444' : '#f59e0b') : '#61c2a2' }}>
+              {availableSeats}/{maxCapacity} seats available
+            </span>
+            <span className="opacity-70">{pkg.enrolledCount ?? 0} enrolled</span>
+          </div>
+          <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+            <div 
+              className="h-full transition-all duration-500 rounded-full"
+              style={{ 
+                width: `${Math.max(5, seatsPercentage)}%`,
+                background: isCritical 
+                  ? 'linear-gradient(90deg, #ef4444 0%, #dc2626 100%)'
+                  : isLowAvailability
+                    ? 'linear-gradient(90deg, #f59e0b 0%, #d97706 100%)'
+                    : 'linear-gradient(90deg, #61c2a2 0%, #4ade80 100%)'
+              }}
+            />
+          </div>
+        </div>
+        
         <div className="flex items-center justify-between mt-3">
           <div className="text-xl font-bold">₹{pkg.price}</div>
           <div className="flex gap-2">

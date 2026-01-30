@@ -45,6 +45,8 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         enrollment.setUser(user);
         enrollment.setTripRequest(tripRequest);
         enrollment.setPaid(paid);
+        // Use packageId from request if provided, otherwise from tripRequest
+        enrollment.setPackageId(request.getPackageId() != null ? request.getPackageId() : tripRequest.getPackageId());
         enrollmentRepository.save(enrollment);
 
         long count = enrollmentRepository.countByTripRequestId(tripRequest.getId());

@@ -11,4 +11,5 @@ public class EnrollmentRequest {
     private Long userId;
     private Long tripRequestId;
     private String paymentToken;
+    private Long packageId; // Track which package this enrollment is for
 }

@@ -71,6 +71,7 @@ public class PackageController {
         trip.setInterest(com.tripfactory.nomad.domain.enums.InterestType.NATURE);
         trip.setTravelMode(com.tripfactory.nomad.domain.enums.TravelMode.SOLO);
         trip.setPickupRequired(Boolean.FALSE);
+        trip.setPackageId(id); // Set packageId for tracking enrollments
         // Set estimatedCost to package price
         if (d.getPrice() != null) {
             try {

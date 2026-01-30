@@ -33,4 +33,7 @@ public class Enrollment {
 
     @Column(nullable = false)
     private boolean paid;
+
+    @Column(name = "package_id")
+    private Long packageId; // Track which package this enrollment is for
 }

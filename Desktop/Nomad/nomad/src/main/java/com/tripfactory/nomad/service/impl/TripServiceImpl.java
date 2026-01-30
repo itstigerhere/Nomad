@@ -440,8 +440,11 @@ public class TripServiceImpl implements TripService {
                     List<TripPlan> plans = tripPlanRepository
                             .findByTripRequestIdOrderByDayNumberAscStartTimeAsc(tripRequest.getId());
                         TripResponse response = toResponse(tripRequest, plans);
-                        response.setEstimatedCost(
-                            estimateCost(plans.size(), Boolean.TRUE.equals(tripRequest.getPickupRequired())));
+                        // Only recalculate cost if not already set (e.g., for package enrollments)
+                        if (response.getEstimatedCost() == null || response.getEstimatedCost().compareTo(BigDecimal.ZERO) == 0) {
+                            response.setEstimatedCost(
+                                estimateCost(plans.size(), Boolean.TRUE.equals(tripRequest.getPickupRequired())));
+                        }
                         return response;
                 })
                 .collect(Collectors.toList());
@@ -580,6 +583,10 @@ public class TripServiceImpl implements TripService {
         }
         response.setStatus(tripRequest.getStatus());
         response.setCreatedAt(tripRequest.getCreatedAt());
+        // Set estimatedCost from TripRequest
+        if (tripRequest.getEstimatedCost() != null) {
+            response.setEstimatedCost(BigDecimal.valueOf(tripRequest.getEstimatedCost()));
+        }
         // Set user initial location for frontend marker
         User user = tripRequest.getUser();
         response.setUserLatitude(user != null ? user.getLatitude() : null);

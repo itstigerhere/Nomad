@@ -15,4 +15,7 @@ public class PackageSummaryResponse {
     private String shortDescription;
     private BigDecimal price;
     private String imageUrl;
+    private Integer maxCapacity = 20; // Default max capacity per package
+    private Integer enrolledCount = 0; // Number of people enrolled
+    private Integer availableSeats; // Calculated: maxCapacity - enrolledCount
 }

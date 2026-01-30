@@ -72,6 +72,9 @@ public class TripRequest {
     @Column
     private Double estimatedCost;
 
+    @Column(name = "package_id")
+    private Long packageId; // Track if this trip is part of a package enrollment
+
     @Column(unique = true)
     private String shareToken;
 

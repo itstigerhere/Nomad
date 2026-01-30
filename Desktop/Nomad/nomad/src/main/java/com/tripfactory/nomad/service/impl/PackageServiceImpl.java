@@ -12,6 +12,7 @@ import com.tripfactory.nomad.api.dto.PackageDetailResponse;
 import com.tripfactory.nomad.api.dto.PackageSummaryResponse;
 import com.tripfactory.nomad.api.dto.PlaceResponse;
 import com.tripfactory.nomad.domain.entity.Place;
+import com.tripfactory.nomad.repository.EnrollmentRepository;
 import com.tripfactory.nomad.repository.PlaceRepository;
 import com.tripfactory.nomad.service.PackageService;
 
@@ -23,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 public class PackageServiceImpl implements PackageService {
 
     private final PlaceRepository placeRepository;
+    private final EnrollmentRepository enrollmentRepository;
     private final AtomicLong idGenerator = new AtomicLong(100);
     private final List<PackageSummaryResponse> packages = new ArrayList<>();
 
@@ -59,14 +61,30 @@ public class PackageServiceImpl implements PackageService {
         return s;
     }
 
+    private void calculateAvailableSeats(PackageSummaryResponse pkg) {
+        long enrolledCount = enrollmentRepository.countByPackageId(pkg.getId());
+        pkg.setEnrolledCount((int) enrolledCount);
+        pkg.setAvailableSeats(pkg.getMaxCapacity() - (int) enrolledCount);
+    }
+
+    private void calculateAvailableSeats(PackageDetailResponse pkg) {
+        long enrolledCount = enrollmentRepository.countByPackageId(pkg.getId());
+        pkg.setEnrolledCount((int) enrolledCount);
+        pkg.setAvailableSeats(pkg.getMaxCapacity() - (int) enrolledCount);
+    }
+
     @Override
     public List<PackageSummaryResponse> getHomepagePackages() {
-        return packages.stream().limit(3).collect(Collectors.toList());
+        List<PackageSummaryResponse> homepagePackages = packages.stream().limit(3).collect(Collectors.toList());
+        homepagePackages.forEach(this::calculateAvailableSeats);
+        return homepagePackages;
     }
 
     @Override
     public List<PackageSummaryResponse> getAllPackages() {
-        return new ArrayList<>(packages);
+        List<PackageSummaryResponse> allPackages = new ArrayList<>(packages);
+        allPackages.forEach(this::calculateAvailableSeats);
+        return allPackages;
     }
 
     @Override
@@ -114,6 +132,9 @@ public class PackageServiceImpl implements PackageService {
 
         double avg = placeResponses.stream().mapToDouble(p -> p.getRating() == null ? 0.0 : p.getRating()).average().orElse(0.0);
         detail.setAverageRating(avg);
+
+        // Calculate available seats
+        calculateAvailableSeats(detail);
 
         return detail;
     }
