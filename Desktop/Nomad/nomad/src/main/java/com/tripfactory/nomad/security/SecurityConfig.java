@@ -38,7 +38,6 @@ public class SecurityConfig {
                     "/api/auth/**",
                     "/api/packages/**",
                     "/api/places/**",
-                    "/api/places/nearby",
                     "/api/payment/webhook",
                     "/api/share/**",
                     "/actuator/**",
