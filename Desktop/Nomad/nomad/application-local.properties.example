@@ -1,0 +1,3 @@
+# Copy this file to application-local.properties and set your PostgreSQL password.
+# application-local.properties is gitignored - do not commit it.
+spring.datasource.password=your_postgres_password_here
