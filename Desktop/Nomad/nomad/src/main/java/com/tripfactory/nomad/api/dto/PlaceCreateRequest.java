@@ -30,4 +30,8 @@ public class PlaceCreateRequest {
 
     @NotNull
     private Double rating;
+
+    private String description;
+    private String imageUrl;
+    private String openingHours;
 }

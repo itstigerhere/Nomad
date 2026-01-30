@@ -59,8 +59,12 @@ public class UserController {
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body("No file uploaded");
         }
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            return ResponseEntity.badRequest().body("Only image files are allowed (e.g. JPEG, PNG)");
+        }
         try {
-            String originalFilename = StringUtils.cleanPath(file.getOriginalFilename());
+            String originalFilename = StringUtils.cleanPath(file.getOriginalFilename() != null ? file.getOriginalFilename() : "photo");
             String ext = "";
             int i = originalFilename.lastIndexOf('.');
             if (i > 0) ext = originalFilename.substring(i);

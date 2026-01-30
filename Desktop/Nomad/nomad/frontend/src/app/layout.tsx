@@ -18,20 +18,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className="bg-[var(--color-bg)] text-[var(--color-text)] antialiased">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){var t=localStorage.getItem("theme")||"light";document.documentElement.setAttribute("data-theme",t);document.documentElement.classList.toggle("dark",t==="dark");})();`,
+          }}
+        />
+      </head>
+      <body className="bg-[var(--color-bg)] text-[var(--color-text)] antialiased min-h-screen">
         <TourCartProvider>
           <div className="min-h-screen flex flex-col">
-            {/* Global header (fixed, with dark mode support) */}
             <Header />
-
-            {/* Page content (with padding for fixed header) */}
             <main className="flex-1 pt-16 sm:pt-20">{children}</main>
-
-            {/* Global footer */}
             <Footer />
-
-            {/* Floating cart button */}
             <TourCartButton />
           </div>
         </TourCartProvider>

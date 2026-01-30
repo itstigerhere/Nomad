@@ -9,4 +9,6 @@ import com.tripfactory.nomad.domain.entity.Review;
 public interface ReviewRepository extends JpaRepository<Review, Long> {
 
     List<Review> findByTripRequestId(Long tripRequestId);
+
+    boolean existsByTripRequestIdAndUserId(Long tripRequestId, Long userId);
 }

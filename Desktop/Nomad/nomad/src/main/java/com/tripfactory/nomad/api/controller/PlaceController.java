@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.tripfactory.nomad.api.dto.PlaceNearbyResponse;
-import com.tripfactory.nomad.domain.entity.Place;
+import com.tripfactory.nomad.api.dto.PlaceResponse;
 import com.tripfactory.nomad.domain.enums.InterestType;
 import com.tripfactory.nomad.service.PlaceService;
 
@@ -35,9 +35,7 @@ public class PlaceController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Place> getPlaceById(@PathVariable Long id) {
-        return placeService.getPlaceById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<PlaceResponse> getPlaceById(@PathVariable Long id) {
+        return ResponseEntity.ok(placeService.getById(id));
     }
 }

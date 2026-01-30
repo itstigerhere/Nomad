@@ -77,6 +77,10 @@ body {
   background-color: rgba(28, 28, 30, 0.04);
 }
 
+[data-theme="dark"] .btn-outline:hover {
+  background-color: rgba(249, 250, 251, 0.08);
+}
+
 .badge {
   @apply inline-flex items-center rounded-full text-xs font-semibold px-3 py-1;
   background-color: rgba(97, 194, 162, 0.15);

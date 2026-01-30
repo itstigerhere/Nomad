@@ -28,39 +28,35 @@ public class PackageServiceImpl implements PackageService {
 
     @PostConstruct
     public void init() {
-        // Build three example packages using seeded places when available
         List<Place> bengaluru = placeRepository.findByCityIgnoreCase("Bengaluru");
         List<Place> mumbai = placeRepository.findByCityIgnoreCase("Mumbai");
         List<Place> delhi = placeRepository.findByCityIgnoreCase("Delhi");
+        List<Place> hyderabad = placeRepository.findByCityIgnoreCase("Hyderabad");
+        List<Place> chennai = placeRepository.findByCityIgnoreCase("Chennai");
+        List<Place> kolkata = placeRepository.findByCityIgnoreCase("Kolkata");
+        List<Place> pune = placeRepository.findByCityIgnoreCase("Pune");
+        List<Place> jaipur = placeRepository.findByCityIgnoreCase("Jaipur");
+        List<Place> goa = placeRepository.findByCityIgnoreCase("Goa");
 
-        packages.add(buildSummary("Weekend in Bengaluru", "A curated 2-day Bengaluru weekend with food, parks and nightlife.", new BigDecimal("4999"), bengaluru));
-        packages.add(buildSummary("Mumbai Shoreline", "Explore beaches, bazaars and local cuisine in Mumbai.", new BigDecimal("5999"), mumbai));
-        packages.add(buildSummary("Delhi Heritage Trip", "Historical walks, markets and cultural experiences in Delhi.", new BigDecimal("5499"), delhi));
+        packages.add(buildSummary("Weekend in Bengaluru", "A curated 2-day Bengaluru weekend with food, parks and nightlife.", new BigDecimal("4999"), bengaluru, "https://picsum.photos/seed/bengaluru-weekend/400/240"));
+        packages.add(buildSummary("Mumbai Shoreline", "Explore beaches, bazaars and local cuisine in Mumbai.", new BigDecimal("5999"), mumbai, "https://picsum.photos/seed/mumbai-shoreline/400/240"));
+        packages.add(buildSummary("Delhi Heritage Trip", "Historical walks, markets and cultural experiences in Delhi.", new BigDecimal("5499"), delhi, "https://picsum.photos/seed/delhi-heritage/400/240"));
+        packages.add(buildSummary("Hyderabad City Tour", "Charminar, Golconda Fort, biryani trails and bazaars in the City of Pearls.", new BigDecimal("4699"), hyderabad, "https://picsum.photos/seed/hyderabad-city/400/240"));
+        packages.add(buildSummary("Chennai Coastal Escape", "Marina Beach, temples, museums and coastal food in Chennai.", new BigDecimal("5299"), chennai, "https://picsum.photos/seed/chennai-coastal/400/240"));
+        packages.add(buildSummary("Kolkata Culture Trail", "Victoria Memorial, Park Street, ghats and Bengali cuisine in Kolkata.", new BigDecimal("4899"), kolkata, "https://picsum.photos/seed/kolkata-culture/400/240"));
+        packages.add(buildSummary("Pune Heritage & Hills", "Forts, Aga Khan Palace, Koregaon Park and hill views in Pune.", new BigDecimal("4499"), pune, "https://picsum.photos/seed/pune-heritage/400/240"));
+        packages.add(buildSummary("Jaipur Royal Experience", "Hawa Mahal, Amer Fort, City Palace and Rajasthani culture in the Pink City.", new BigDecimal("5699"), jaipur, "https://picsum.photos/seed/jaipur-royal/400/240"));
+        packages.add(buildSummary("Goa Beach & Heritage", "Beaches, churches, Dudhsagar Falls and Goan nightlife.", new BigDecimal("6499"), goa, "https://picsum.photos/seed/goa-beach/400/240"));
     }
 
-    private PackageSummaryResponse buildSummary(String name, String desc, BigDecimal price, List<Place> fromPlaces) {
+    private PackageSummaryResponse buildSummary(String name, String desc, BigDecimal price, List<Place> fromPlaces, String imageUrl) {
         PackageSummaryResponse s = new PackageSummaryResponse();
         s.setId(idGenerator.getAndIncrement());
         s.setName(name);
         s.setShortDescription(desc);
         s.setPrice(price);
-        s.setImageUrl(resolvePackageImage(name));
+        s.setImageUrl(imageUrl);
         return s;
-    }
-
-    private String resolvePackageImage(String packageName) {
-        String nameLower = packageName.toLowerCase();
-        
-        if (nameLower.contains("bengaluru") || nameLower.contains("bangalore")) {
-            return "/blr.jpeg";
-        } else if (nameLower.contains("mumbai") || nameLower.contains("bombay")) {
-            return "/mum.jpeg";
-        } else if (nameLower.contains("delhi")) {
-            return "/del.jpeg";
-        }
-        
-        // Default fallback
-        return "/street.jpeg";
     }
 
     @Override
@@ -85,13 +81,18 @@ public class PackageServiceImpl implements PackageService {
         detail.setPrice(summary.getPrice());
         detail.setImageUrl(summary.getImageUrl());
 
-        // For demo purposes, attach up to 5 places from the same city (fallback to any)
-        List<Place> places = placeRepository.findByCityIgnoreCase("Bengaluru");
-        if (summary.getName().toLowerCase().contains("mumbai")) {
-            places = placeRepository.findByCityIgnoreCase("Mumbai");
-        } else if (summary.getName().toLowerCase().contains("delhi")) {
-            places = placeRepository.findByCityIgnoreCase("Delhi");
-        }
+        // Attach places from the package's city
+        String name = summary.getName().toLowerCase();
+        String city = "Bengaluru";
+        if (name.contains("mumbai")) city = "Mumbai";
+        else if (name.contains("delhi")) city = "Delhi";
+        else if (name.contains("hyderabad")) city = "Hyderabad";
+        else if (name.contains("chennai")) city = "Chennai";
+        else if (name.contains("kolkata")) city = "Kolkata";
+        else if (name.contains("pune")) city = "Pune";
+        else if (name.contains("jaipur")) city = "Jaipur";
+        else if (name.contains("goa")) city = "Goa";
+        List<Place> places = placeRepository.findByCityIgnoreCase(city);
         if (places == null || places.isEmpty()) {
             places = placeRepository.findAll();
         }

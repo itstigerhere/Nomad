@@ -10,4 +10,8 @@ public interface ReviewService {
     ReviewResponse createReview(ReviewCreateRequest request);
 
     List<ReviewResponse> getReviewsByTrip(Long tripRequestId);
+
+    Double getAverageRatingByTrip(Long tripRequestId);
+
+    boolean hasUserReviewedTrip(Long tripRequestId, Long userId);
 }

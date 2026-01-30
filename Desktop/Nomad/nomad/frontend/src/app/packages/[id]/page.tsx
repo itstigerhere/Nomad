@@ -3,10 +3,12 @@ import { notFound } from "next/navigation";
 
 const EnrollButton = dynamic(() => import("@/components/EnrollButton"), { ssr: false });
 
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+
 async function fetchPackage(id: string) {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/packages/${id}`, { cache: 'no-store' });
+  const res = await fetch(`${API_BASE}/api/packages/${id}`, { cache: "no-store" });
   if (res.status === 404) return null;
-  if (!res.ok) throw new Error('Failed to fetch package');
+  if (!res.ok) throw new Error("Failed to fetch package");
   return res.json();
 }
 

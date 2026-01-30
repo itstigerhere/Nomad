@@ -23,6 +23,9 @@ export default function AdminPage() {
     longitude: "",
     category: "CULTURE",
     rating: "4.5",
+    description: "",
+    imageUrl: "",
+    openingHours: "",
   });
 
   const [vehicleForm, setVehicleForm] = useState({
@@ -68,6 +71,9 @@ export default function AdminPage() {
         longitude: Number(placeForm.longitude),
         category: placeForm.category,
         rating: Number(placeForm.rating),
+        description: placeForm.description || undefined,
+        imageUrl: placeForm.imageUrl || undefined,
+        openingHours: placeForm.openingHours || undefined,
       });
       await loadData();
     } catch (err) {
@@ -158,6 +164,28 @@ export default function AdminPage() {
                 value={placeForm.rating}
                 onChange={handlePlaceChange}
                 placeholder="Rating"
+                className="border rounded-xl px-4 py-2"
+              />
+              <textarea
+                name="description"
+                value={placeForm.description}
+                onChange={handlePlaceChange}
+                placeholder="Description (optional)"
+                className="border rounded-xl px-4 py-2"
+                rows={2}
+              />
+              <input
+                name="imageUrl"
+                value={placeForm.imageUrl}
+                onChange={handlePlaceChange}
+                placeholder="Image URL (optional)"
+                className="border rounded-xl px-4 py-2"
+              />
+              <input
+                name="openingHours"
+                value={placeForm.openingHours}
+                onChange={handlePlaceChange}
+                placeholder="Opening hours e.g. 9 AM - 6 PM (optional)"
                 className="border rounded-xl px-4 py-2"
               />
             </div>

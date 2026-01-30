@@ -6,9 +6,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.tripfactory.nomad.api.dto.TripGroupCreateRequest;
 import com.tripfactory.nomad.api.dto.TripGroupMemberResponse;
 import com.tripfactory.nomad.api.dto.TripGroupResponse;
 import com.tripfactory.nomad.service.TripGroupService;
@@ -21,6 +24,12 @@ import lombok.RequiredArgsConstructor;
 public class TripGroupController {
 
     private final TripGroupService tripGroupService;
+
+
+    @PostMapping("")
+    public ResponseEntity<TripGroupResponse> createGroup(@RequestBody TripGroupCreateRequest request) {
+        return ResponseEntity.ok(tripGroupService.createGroup(request));
+    }
 
     @GetMapping("/{groupId}")
     @PreAuthorize("@authz.canAccessGroup(#groupId)")

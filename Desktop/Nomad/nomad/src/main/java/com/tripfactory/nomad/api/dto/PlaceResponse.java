@@ -17,4 +17,7 @@ public class PlaceResponse {
     private Double longitude;
     private InterestType category;
     private Double rating;
+    private String description;
+    private String imageUrl;
+    private String openingHours;
 }

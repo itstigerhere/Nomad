@@ -14,6 +14,8 @@ import jakarta.validation.Valid;
 import com.tripfactory.nomad.api.dto.AuthLoginRequest;
 import com.tripfactory.nomad.api.dto.AuthRegisterRequest;
 import com.tripfactory.nomad.api.dto.AuthResponse;
+import com.tripfactory.nomad.api.dto.ForgotPasswordRequest;
+import com.tripfactory.nomad.api.dto.ResetPasswordRequest;
 import com.tripfactory.nomad.api.dto.UserResponse;
 import com.tripfactory.nomad.security.UserPrincipal;
 import com.tripfactory.nomad.service.AuthService;
@@ -40,5 +42,17 @@ public class AuthController {
     @GetMapping("/me")
     public ResponseEntity<UserResponse> me(@AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(authService.me(principal.getUsername()));
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        authService.requestPasswordReset(request.getEmail());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request.getToken(), request.getNewPassword());
+        return ResponseEntity.ok().build();
     }
 }
