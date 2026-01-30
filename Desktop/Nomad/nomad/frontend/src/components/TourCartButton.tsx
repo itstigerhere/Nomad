@@ -4,6 +4,29 @@ import { useTourCart } from "@/context/TourCartContext";
 import { useState } from "react";
 import Link from "next/link";
 
+function getPlaceImage(placeName: string): string {
+  const name = placeName.toLowerCase();
+  
+  // Bengaluru places
+  if (name.includes('palace') || name.includes('bangalore palace')) return '/palace.jpeg';
+  if (name.includes('iskcon')) return '/iskon.jpeg';
+  if (name.includes('ulsoor') || name.includes('lake')) return '/lake.jpeg';
+  if (name.includes('cubbon') || name.includes('park')) return '/cprk.jpeg';
+  if (name.includes('lalbagh') || name.includes('botanical')) return '/lal.jpeg';
+  if (name.includes('food street') || name.includes('vv puram')) return '/street.jpeg';
+  
+  // Delhi places
+  if (name.includes('india gate')) return '/india-gate-1.jpg.jpeg';
+  if (name.includes('qutub') || name.includes('minar')) return '/qutub-minar-delhi-1.jpg.jpeg';
+  if (name.includes('chandni chowk')) return '/chandni-chowk-by-night.webp';
+  if (name.includes('lodhi') || name.includes('garden')) return '/Lodhi_Gardens_on_a_sunny_day.jpg.jpeg';
+  if (name.includes('temple') && name.includes('lotus')) return '/main-temple-building.jpg.jpeg';
+  
+  // Use Unsplash for dynamic images based on place name
+  const searchQuery = encodeURIComponent(placeName);
+  return `https://source.unsplash.com/400x300/?${searchQuery},landmark,india`;
+}
+
 export default function TourCartButton() {
   const { cart, removeFromCart, clearCart, cartCount } = useTourCart();
   const [isOpen, setIsOpen] = useState(false);
@@ -56,6 +79,11 @@ export default function TourCartButton() {
               </div>
               <p className="text-sm mt-1" style={{ color: 'var(--color-text)', opacity: 0.6 }}>
                 {cartCount} {cartCount === 1 ? "place" : "places"} selected
+                {cart.length > 0 && cart[0].city && (
+                  <span className="ml-2 px-2 py-0.5 rounded text-xs font-semibold" style={{ background: 'rgba(97, 194, 162, 0.1)', color: '#61c2a2' }}>
+                    {cart[0].city}
+                  </span>
+                )}
               </p>
             </div>
 
@@ -71,16 +99,12 @@ export default function TourCartButton() {
                   {cart.map((place) => (
                     <div key={place.id} className="p-4 flex gap-4 rounded-xl" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>
                       <img
-                        src={place.imageUrl && place.imageUrl !== 'null' && place.imageUrl !== 'undefined' 
-                          ? place.imageUrl 
-                          : `https://ui-avatars.com/api/?name=${encodeURIComponent(place.name)}&background=61c2a2&color=fff&size=200`}
+                        src={getPlaceImage(place.name)}
                         alt={place.name}
                         className="w-20 h-20 object-cover rounded-md flex-shrink-0"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
-                          if (!target.src.includes('ui-avatars.com')) {
-                            target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(place.name)}&background=61c2a2&color=fff&size=200`;
-                          }
+                          target.src = '/sample.jpg';
                         }}
                       />
                       <div className="flex-1 min-w-0">

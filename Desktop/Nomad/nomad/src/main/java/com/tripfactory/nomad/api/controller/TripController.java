@@ -87,7 +87,7 @@ public class TripController {
     @DeleteMapping("/{id}")
     @PreAuthorize("@authz.canAccessTrip(#id)")
     public ResponseEntity<Void> deleteTrip(@PathVariable Long id) {
-        tripService.deleteTrip(id);
+        tripService.cancelTrip(id);
         return ResponseEntity.noContent().build();
     }
 }

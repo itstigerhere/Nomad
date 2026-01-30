@@ -8,20 +8,20 @@ const LocationPicker = dynamic(() => import("@/components/LocationPicker"), { ss
 
 import ProtectedPage from "@/components/ProtectedPage";
 import { fetchMe } from "@/lib/authApi";
-import { createTrip } from "@/lib/tripApi";
+import { createTrip, previewPlans } from "@/lib/tripApi";
 import { useTourCart } from "@/context/TourCartContext";
 
 const CITIES = ["Bengaluru", "Mumbai", "Delhi"] as const;
 
 export default function TripPlannerPage() {
   const router = useRouter();
-  const { cart, cartCount, addToCart } = useTourCart();
+  const { cart, cartCount, addToCart, clearCart } = useTourCart();
   const [form, setForm] = useState({
     userId: "",
-    city: "Bengaluru",
-    weekendType: "TWO_DAY",
-    interest: "CULTURE",
-    travelMode: "SOLO",
+    city: "",
+    weekendType: "",
+    interest: "",
+    travelMode: "",
     pickupRequired: false,
     userLatitude: "",
     userLongitude: "",
@@ -30,8 +30,10 @@ export default function TripPlannerPage() {
   const [userLoaded, setUserLoaded] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [trip, setTrip] = useState<any | null>(null);
+  const [previewData, setPreviewData] = useState<any | null>(null);
   const [selectedPlanIdx, setSelectedPlanIdx] = useState<number | null>(null);
   const [loadingUser, setLoadingUser] = useState(false);
+  const [loadingPreview, setLoadingPreview] = useState(false);
   const [loadingTrip, setLoadingTrip] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cityLocked, setCityLocked] = useState(false);
@@ -45,9 +47,7 @@ export default function TripPlannerPage() {
           userId: user.id?.toString() || "",
           city: user.city ?? "",
           userLatitude: user.latitude?.toString() ?? "",
-          userLongitude: user.longitude?.toString() ?? "",
-          interest: user.interestType ?? prev.interest,
-          travelMode: user.travelPreference ?? prev.travelMode,
+          userLongitude: user.longitude?.toString() ?? ""
         }));
         setUserLoaded(true);
       } catch (err) {
@@ -70,12 +70,30 @@ export default function TripPlannerPage() {
     setResult(null);
     setTrip(null);
     setSelectedPlanIdx(null);
+    
+    // Validation
     if (!form.userId) {
       setError("User not loaded. Please log in.");
       return;
     }
     if (!form.city) {
       setError("Please select a city.");
+      return;
+    }
+    if (!form.weekendType) {
+      setError("Please select trip duration.");
+      return;
+    }
+    if (!form.interest) {
+      setError("Please select your interest.");
+      return;
+    }
+    if (!form.travelMode) {
+      setError("Please select travel mode.");
+      return;
+    }
+    if (form.travelMode === "GROUP" && (!form.groupSize || Number(form.groupSize) < 2)) {
+      setError("Please enter group size (minimum 2 people).");
       return;
     }
 
@@ -102,7 +120,56 @@ export default function TripPlannerPage() {
       // Continue if check fails
     }
 
+    setLoadingPreview(true);
+    const payload = {
+      userId: Number(form.userId),
+      city: form.city,
+      weekendType: form.weekendType,
+      interest: form.interest,
+      travelMode: form.travelMode,
+      pickupRequired: form.pickupRequired,
+      userLatitude: form.userLatitude ? Number(form.userLatitude) : undefined,
+      userLongitude: form.userLongitude ? Number(form.userLongitude) : undefined
+    };
+
+    console.log("[TRIP PLANNER] Previewing plans with payload:", payload);
+
+    try {
+      const data = await previewPlans(payload);
+      console.log("[TRIP PLANNER] Preview data received:", data);
+      setPreviewData(data);
+      setResult("Plans generated! Select your preferred plan below.");
+    } catch (error: any) {
+      console.error("[TRIP PLANNER] Failed to preview plans:", error);
+      const errorMessage = error?.response?.data?.message || error?.message || "Failed to generate plans. Please try again.";
+      setError(errorMessage);
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
+  async function handleSelectPlan(idx: number) {
+    if (!previewData?.planOptions?.[idx]) return;
+    
+    // Check if cart has items from a different city
+    const currentCity = form.city;
+    if (cart.length > 0) {
+      const cartCity = cart[0].city;
+      if (cartCity && cartCity !== currentCity) {
+        const confirmMessage = `Your cart contains places from ${cartCity}. Selecting this plan will clear your cart and add places from ${currentCity}. Do you want to continue?`;
+        if (!confirm(confirmMessage)) {
+          return; // User cancelled
+        }
+        // Clear cart before proceeding
+        clearCart();
+      }
+    }
+    
+    setSelectedPlanIdx(idx);
     setLoadingTrip(true);
+    setError(null);
+    
+    const selectedPlan = previewData.planOptions[idx];
     const payload = {
       userId: Number(form.userId),
       city: form.city,
@@ -113,71 +180,41 @@ export default function TripPlannerPage() {
       userLatitude: form.userLatitude ? Number(form.userLatitude) : undefined,
       userLongitude: form.userLongitude ? Number(form.userLongitude) : undefined,
       groupSize: form.groupSize ? Number(form.groupSize) : undefined,
+      selectedPlanType: selectedPlan.planType || selectedPlan.type || "Hybrid"
     };
+
+    console.log("[TRIP PLANNER] Creating trip with payload:", payload);
 
     try {
       const data = await createTrip(payload);
+      console.log("[TRIP PLANNER] Trip created successfully:", data);
       setTrip(data);
-      setResult(`Trip created successfully!`);
-    } catch (error) {
-      setError("Failed to create trip. Please try again.");
+      setResult(`Trip created successfully with ${selectedPlan.planType || selectedPlan.type || 'selected'} plan!`);
+      
+      // Add all places from the selected plan to cart
+      if (selectedPlan.places) {
+        selectedPlan.places.forEach((place: any) => {
+          addToCart({
+            id: place.placeId || Math.floor(Math.random() * 1000000),
+            name: place.placeName,
+            city: data.city || form.city,
+            category: place.category,
+            imageUrl: place.imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(place.placeName)}&background=61c2a2&color=fff&size=400`,
+            latitude: place.latitude,
+            longitude: place.longitude,
+            rating: place.rating,
+          });
+        });
+      }
+    } catch (error: any) {
+      console.error("[TRIP PLANNER] Failed to create trip:", error);
+      const errorMessage = error?.response?.data?.message || error?.message || "Failed to create trip. Please try again.";
+      setError(errorMessage);
+      setSelectedPlanIdx(null);
     } finally {
       setLoadingTrip(false);
     }
-  };
-
-  const handleSelectPlan = (idx: number) => {
-    setSelectedPlanIdx(idx);
-    
-    // Add all places from the selected plan to cart
-    if (trip?.plans?.[idx]?.places) {
-      trip.plans[idx].places.forEach((place: any) => {
-        // Construct the image URL based on place name - matching backend logic
-        const getImageUrl = (placeName: string, city: string) => {
-          const nameLower = placeName.toLowerCase();
-          const cityLower = city.toLowerCase();
-          
-          // Specific attraction mappings (matches backend logic)
-          if (nameLower.includes('iskcon') || nameLower.includes('temple')) {
-            return '/iskon.jpeg';
-          } else if (nameLower.includes('palace') || nameLower.includes('mysore')) {
-            return '/palace.jpeg';
-          } else if (nameLower.includes('lake') || nameLower.includes('ulsoor')) {
-            return '/lake.jpeg';
-          } else if (nameLower.includes('lal bagh') || nameLower.includes('lalbagh') || nameLower.includes('botanical')) {
-            return '/lal.jpeg';
-          } else if (nameLower.includes('cubbon') || nameLower.includes('park')) {
-            return '/cprk.jpeg';
-          } else if (nameLower.includes('street') || nameLower.includes('brigade') || nameLower.includes('commercial')) {
-            return '/street.jpeg';
-          }
-          
-          // City-based fallback mappings
-          if (cityLower.includes('bangalore') || cityLower.includes('bengaluru')) {
-            return '/blr.jpeg';
-          } else if (cityLower.includes('delhi')) {
-            return '/del.jpeg';
-          } else if (cityLower.includes('mumbai') || cityLower.includes('bombay')) {
-            return '/mum.jpeg';
-          }
-          
-          // Default fallback
-          return `https://ui-avatars.com/api/?name=${encodeURIComponent(placeName)}&background=61c2a2&color=fff&size=400`;
-        };
-
-        addToCart({
-          id: place.placeId || Math.floor(Math.random() * 1000000), // Use placeId or generate temp id
-          name: place.placeName,
-          city: trip.city || form.city,
-          category: place.category,
-          imageUrl: getImageUrl(place.placeName, trip.city || form.city),
-          latitude: place.latitude,
-          longitude: place.longitude,
-          rating: place.rating,
-        });
-      });
-    }
-  };
+  }
 
   return (
     <ProtectedPage>
@@ -251,6 +288,29 @@ export default function TripPlannerPage() {
             </div>
           )}
 
+          {/* City Mismatch Warning */}
+          {cart.length > 0 && form.city && cart[0].city !== form.city && (
+            <div className="rounded-2xl p-5 animate-fade-in" style={{ 
+              background: 'rgba(251, 191, 36, 0.1)', 
+              border: '2px solid #fbbf24'
+            }}>
+              <div className="flex items-start gap-3">
+                <svg className="w-6 h-6 flex-shrink-0 mt-0.5" style={{ color: '#f59e0b' }} fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
+                </svg>
+                <div className="flex-1">
+                  <p className="font-semibold mb-1" style={{ color: '#d97706' }}>
+                    Different City Selected
+                  </p>
+                  <p className="text-sm" style={{ color: '#d97706', opacity: 0.9 }}>
+                    Your cart contains places from <strong>{cart[0].city}</strong>, but you've selected <strong>{form.city}</strong>. 
+                    When you create a trip, your cart will be cleared and replaced with places from {form.city}.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Main Form */}
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Left Column - Form */}
@@ -281,8 +341,14 @@ export default function TripPlannerPage() {
                         value={form.city} 
                         onChange={handleChange} 
                         className="w-full rounded-xl px-4 py-3.5 font-medium transition-all hover:shadow-md"
-                        style={{ border: '2px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text)' }}
+                        style={{ 
+                          border: '2px solid var(--color-border)', 
+                          background: 'var(--color-bg)', 
+                          color: 'var(--color-text)',
+                          colorScheme: 'dark'
+                        }}
                       >
+                        <option value="">Select a city</option>
                         {CITIES.map((city) => (
                           <option key={city} value={city}>{city}</option>
                         ))}
@@ -300,8 +366,14 @@ export default function TripPlannerPage() {
                     value={form.weekendType} 
                     onChange={handleChange} 
                     className="w-full rounded-xl px-4 py-3.5 font-medium transition-all hover:shadow-md"
-                    style={{ border: '2px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text)' }}
+                    style={{ 
+                      border: '2px solid var(--color-border)', 
+                      background: 'var(--color-bg)', 
+                      color: 'var(--color-text)',
+                      colorScheme: 'dark'
+                    }}
                   >
+                    <option value="">Select duration</option>
                     <option value="ONE_DAY">One Day Adventure</option>
                     <option value="TWO_DAY">Two Days Getaway</option>
                   </select>
@@ -318,8 +390,15 @@ export default function TripPlannerPage() {
                     value={form.interest} 
                     onChange={handleChange} 
                     className="w-full rounded-xl px-4 py-3.5 font-medium transition-all hover:shadow-md"
-                    style={{ border: '2px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text)' }}
+                    style={{ 
+                      border: '2px solid var(--color-border)', 
+                      background: 'var(--color-bg)', 
+                      color: 'var(--color-text)',
+                      colorScheme: 'dark'
+                    }}
                   >
+                    <option value="">Select your interest</option>
+                    
                     {["FOOD", "CULTURE", "NATURE", "ADVENTURE", "SHOPPING", "NIGHTLIFE", "RELAXATION"].map((interest) => (
                       <option key={interest} value={interest}>
                         {interest.charAt(0) + interest.slice(1).toLowerCase()}
@@ -339,8 +418,14 @@ export default function TripPlannerPage() {
                     value={form.travelMode} 
                     onChange={handleChange} 
                     className="w-full rounded-xl px-4 py-3.5 font-medium transition-all hover:shadow-md"
-                    style={{ border: '2px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text)' }}
+                    style={{ 
+                      border: '2px solid var(--color-border)', 
+                      background: 'var(--color-bg)', 
+                      color: 'var(--color-text)',
+                      colorScheme: 'dark'
+                    }}
                   >
+                    <option value="">Select travel mode</option>
                     <option value="SOLO">Solo Explorer</option>
                     <option value="GROUP">Group Adventure</option>
                   </select>
@@ -444,23 +529,23 @@ export default function TripPlannerPage() {
                 color: 'white'
               }} 
               onClick={handleSubmit} 
-              disabled={loadingTrip}
+              disabled={loadingPreview || loadingTrip}
             >
               <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity"></div>
-              {loadingTrip ? (
+              {loadingPreview ? (
                 <span className="flex items-center justify-center gap-3 relative z-10">
                   <svg className="animate-spin h-6 w-6" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
                   </svg>
-                  Creating Your Perfect Trip...
+                  Generating Plan Options...
                 </span>
               ) : (
                 <span className="flex items-center justify-center gap-3 relative z-10">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
-                  Generate Trip
+                  Preview Trip Plans
                 </span>
               )}
             </button>
@@ -549,8 +634,8 @@ export default function TripPlannerPage() {
             </div>
           )}
 
-          {/* Show plan options after trip creation */}
-          {trip?.plans && Array.isArray(trip.plans) && trip.plans.length > 0 && (
+          {/* Show plan options after preview */}
+          {previewData?.planOptions && Array.isArray(previewData.planOptions) && previewData.planOptions.length > 0 && (
             <div className="card p-8 space-y-8 animate-fade-in">
               <div className="text-center space-y-3">
                 <span className="badge">🎉 Your Plans Are Ready!</span>
@@ -559,7 +644,7 @@ export default function TripPlannerPage() {
               </div>
               
               <div className="grid md:grid-cols-2 gap-6">
-                {trip.plans.map((plan: any, idx: number) => (
+                {previewData.planOptions.map((plan: any, idx: number) => (
                   <div 
                     key={idx} 
                     className={`relative rounded-2xl p-6 transition-all cursor-pointer hover-lift ${
@@ -619,40 +704,133 @@ export default function TripPlannerPage() {
                     
                     <div className="flex gap-2">
                       <button
-                        className="flex-1 py-2 px-4 rounded-xl font-semibold transition-all"
+                        className="flex-1 py-2 px-4 rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         style={selectedPlanIdx === idx
                           ? { background: 'var(--color-brand)', color: 'white', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }
                           : { border: '2px solid var(--color-border)', color: 'var(--color-text)', background: 'transparent' }
                         }
                         onClick={() => handleSelectPlan(idx)}
+                        disabled={loadingTrip}
                       >
-                        {selectedPlanIdx === idx ? '✓ Selected & Added to Cart' : 'Select This Plan'}
+                        {loadingTrip && selectedPlanIdx === idx ? (
+                          <span className="flex items-center justify-center gap-2">
+                            <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                            </svg>
+                            Creating Trip...
+                          </span>
+                        ) : trip && selectedPlanIdx === idx ? (
+                          '✓ Trip Created!'
+                        ) : (
+                          'Select & Create Trip'
+                        )}
                       </button>
-                      <button
-                        className="px-4 py-2 rounded-xl font-semibold transition-all"
-                        style={{ background: 'rgba(0,0,0,0.05)', color: 'var(--color-text)' }}
-                        onClick={() => {
-                          if (!trip?.tripRequestId) {
-                            setError("Trip ID not found. Please try creating the trip again.");
-                            return;
-                          }
-                          const planType = trip.plans[idx]?.type || '';
-                          router.push(`/trip-summary?tripId=${trip.tripRequestId}&planType=${encodeURIComponent(planType)}`);
-                        }}
-                        title="View full itinerary"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                      </button>
+                      {trip && selectedPlanIdx === idx && (
+                        <button
+                          className="px-4 py-2 rounded-xl font-semibold transition-all"
+                          style={{ background: 'rgba(97, 194, 162, 0.1)', color: 'var(--color-brand)' }}
+                          onClick={() => {
+                            if (!trip?.tripRequestId) {
+                              setError("Trip ID not found. Please try creating the trip again.");
+                              return;
+                            }
+                            router.push(`/trip-summary?tripId=${trip.tripRequestId}`);
+                          }}
+                          title="View full itinerary"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
 
+              {/* Trip Itinerary Display - After Trip Created */}
+              {trip && trip.plans && trip.plans.length > 0 && selectedPlanIdx !== null && (
+                <div className="rounded-2xl p-6 shadow-lg" style={{ 
+                  background: 'linear-gradient(135deg, rgba(97, 194, 162, 0.05) 0%, rgba(79, 108, 255, 0.05) 100%)',
+                  border: '2px solid rgba(97, 194, 162, 0.3)'
+                }}>
+                  <h3 className="text-xl font-bold mb-4" style={{ color: '#61c2a2' }}>
+                    Your Trip Itinerary
+                  </h3>
+                  
+                  {/* Trip Status and Cost */}
+                  <div className="flex items-center justify-between mb-4 p-3 rounded-lg" style={{ background: 'rgba(97, 194, 162, 0.1)' }}>
+                    <div>
+                      <p className="text-sm text-gray-400">Status</p>
+                      <p className="font-semibold text-yellow-500">
+                        {trip.status === 'REQUESTED' ? 'AWAITING PAYMENT' : trip.status}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-gray-400">Estimated Cost</p>
+                      <p className="text-2xl font-bold" style={{ color: '#61c2a2' }}>
+                        ₹{trip.estimatedCost?.toLocaleString() || 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Places Itinerary */}
+                  <div className="space-y-3 mb-4">
+                    {trip.plans[0].places.map((place: any, idx: number) => (
+                      <div key={idx} className="flex items-start gap-3 p-3 rounded-lg" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold" style={{ background: '#61c2a2', color: 'white' }}>
+                          {idx + 1}
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-semibold text-lg">{place.placeName}</p>
+                          <div className="flex items-center gap-4 mt-1 text-sm text-gray-400">
+                            <span>Day {place.dayNumber}</span>
+                            <span>•</span>
+                            <span>{place.startTime} - {place.endTime}</span>
+                            {place.category && (
+                              <>
+                                <span>•</span>
+                                <span className="capitalize">{place.category}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-3 mt-6">
+                    <button
+                      onClick={() => router.push('/trips')}
+                      className="flex-1 px-6 py-3 rounded-xl font-semibold transition-all duration-200"
+                      style={{ 
+                        background: 'linear-gradient(135deg, #4F6CFF 0%, #61c2a2 100%)',
+                        color: 'white'
+                      }}
+                    >
+                      Go to My Trips
+                    </button>
+                    {trip.status === 'REQUESTED' && (
+                      <button
+                        onClick={() => router.push(`/payment?tripRequestId=${trip.tripRequestId}&prefillAmount=${trip.estimatedCost}`)}
+                        className="flex-1 px-6 py-3 rounded-xl font-semibold transition-all duration-200"
+                        style={{ 
+                          background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+                          color: 'white'
+                        }}
+                      >
+                        Pay Now
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Show details for selected plan */}
-              {selectedPlanIdx !== null && trip.plans[selectedPlanIdx] && (
+              {selectedPlanIdx !== null && previewData?.planOptions[selectedPlanIdx] && !trip && (
                 <div className="rounded-2xl p-6" style={{ border: '2px solid var(--color-brand)', background: 'rgba(97, 194, 162, 0.05)' }}>
                   <div className="flex items-center gap-2 mb-4">
                     <svg className="w-6 h-6" style={{ color: 'var(--color-brand)' }} fill="currentColor" viewBox="0 0 20 20">
@@ -660,14 +838,14 @@ export default function TripPlannerPage() {
                       <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm9.707 5.707a1 1 0 00-1.414-1.414L9 12.586l-1.293-1.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
                     </svg>
                     <h4 className="font-bold text-xl" style={{ color: 'var(--color-text)' }}>
-                      Your Selected Plan: {trip.plans[selectedPlanIdx].type}
+                      Your Selected Plan: {previewData.planOptions[selectedPlanIdx].planType || previewData.planOptions[selectedPlanIdx].type}
                     </h4>
                   </div>
                   
                   <div className="rounded-xl p-5 mb-4" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>
                     <h5 className="font-semibold mb-3" style={{ color: 'var(--color-text)' }}>Complete Itinerary:</h5>
                     <ol className="space-y-3">
-                      {trip.plans[selectedPlanIdx].places.map((place: any, i: number) => (
+                      {previewData.planOptions[selectedPlanIdx].places.map((place: any, i: number) => (
                         <li key={i} className="flex items-start gap-3">
                           <span className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: 'var(--color-brand)', color: 'white' }}>
                             {i + 1}
@@ -694,23 +872,7 @@ export default function TripPlannerPage() {
                     </ol>
                   </div>
                   
-                  <button
-                    className="w-full btn-primary py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
-                    onClick={() => {
-                      if (!trip?.tripRequestId) {
-                        setError("Trip ID not found. Please try creating the trip again.");
-                        return;
-                      }
-                      if (selectedPlanIdx === null) {
-                        setError("Please select a plan first.");
-                        return;
-                      }
-                      const planType = trip.plans[selectedPlanIdx]?.type || '';
-                      router.push(`/trip-summary?tripId=${trip.tripRequestId}&planType=${encodeURIComponent(planType)}`);
-                    }}
-                  >
-                    View Full Itinerary with Map
-                  </button>
+                  <p className="text-sm text-center" style={{ color: 'var(--color-text)', opacity: 0.7 }}>Click "Select & Create Trip" button above to finalize your booking</p>
                 </div>
               )}
             </div>

@@ -3,8 +3,10 @@
 import { api } from "@/lib/api";
 import { useEffect, useState } from "react";
 import PlaceCard from "./PlaceCard";
+import { useTourCart } from "@/context/TourCartContext";
 
 export default function PlacesList() {
+  const { addToCart, cart, clearCart } = useTourCart();
   const [places, setPlaces] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +73,17 @@ export default function PlacesList() {
         const resolvedCity = await reverseGeocode(latitude, longitude);
         if (resolvedCity) city = resolvedCity;
 
+        // Normalize city names to match backend database
+        if (city) {
+          if (city.toLowerCase().includes('new delhi') || city.toLowerCase() === 'delhi') {
+            city = 'Delhi';
+          } else if (city.toLowerCase().includes('bengaluru') || city.toLowerCase().includes('bangalore')) {
+            city = 'Bengaluru';
+          } else if (city.toLowerCase().includes('mumbai') || city.toLowerCase().includes('bombay')) {
+            city = 'Mumbai';
+          }
+        }
+
         // persist the chosen location for future requests
         try {
           localStorage.setItem("nomad_location", JSON.stringify({ city, latitude, longitude }));
@@ -101,20 +114,31 @@ export default function PlacesList() {
   }, []);
 
   function handleAdd(place: any) {
-    try {
-      const raw = localStorage.getItem("nomad_tour");
-      const arr = raw ? JSON.parse(raw) : [];
-      if (!arr.find((p: any) => p.id === place.id)) {
-        arr.push({ id: place.id, name: place.name });
-        localStorage.setItem("nomad_tour", JSON.stringify(arr));
-        alert(`${place.name} added to your tour`);
-      } else {
-        alert(`${place.name} already in your tour`);
+    // Check if cart has items from a different city
+    if (cart.length > 0) {
+      const cartCity = cart[0].city;
+      const placeCity = place.city;
+      if (cartCity && placeCity && cartCity !== placeCity) {
+        const confirmMessage = `Your cart contains places from ${cartCity}. Adding this place from ${placeCity} will clear your cart. Do you want to continue?`;
+        if (!confirm(confirmMessage)) {
+          return; // User cancelled
+        }
+        // Clear cart before adding new place
+        clearCart();
       }
-    } catch (err) {
-      console.error(err);
-      alert("Unable to add to tour");
     }
+    
+    addToCart({
+      id: place.id,
+      name: place.name,
+      city: place.city,
+      category: place.category,
+      imageUrl: place.imageUrl,
+      latitude: place.latitude,
+      longitude: place.longitude,
+      rating: place.rating,
+      distanceKm: place.distanceKm,
+    });
   }
 
   if (loading) return <div>Loading nearby places…</div>;
@@ -148,7 +172,7 @@ export default function PlacesList() {
   return (
     <div className="grid md:grid-cols-2 gap-4">
       {places.map((p) => (
-        <PlaceCard key={p.id} place={p} onAdd={handleAdd} showAddToTour={false} />
+        <PlaceCard key={p.id} place={p} onAdd={handleAdd} />
       ))}
     </div>
   );
