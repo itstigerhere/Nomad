@@ -50,12 +50,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String email = jwtService.extractSubject(token);
         System.out.println("[JWT FILTER] Extracted email: " + email);
         if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = userDetailsService.loadUserByUsername(email);
-            UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                    userDetails, null, userDetails.getAuthorities());
-            authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-            SecurityContextHolder.getContext().setAuthentication(authToken);
-            System.out.println("[JWT FILTER] Authenticated user: " + userDetails.getUsername());
+            try {
+                UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                        userDetails, null, userDetails.getAuthorities());
+                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authToken);
+                System.out.println("[JWT FILTER] Authenticated user: " + userDetails.getUsername());
+            } catch (Exception e) {
+                // Token valid but user missing or any load failure (e.g. after DB reset) — continue without auth
+                // so permitAll endpoints like /api/auth/register and /api/places/nearby still work
+                SecurityContextHolder.clearContext();
+                System.out.println("[JWT FILTER] Could not load user for token (" + e.getMessage() + "), continuing unauthenticated");
+            }
         }
 
         filterChain.doFilter(request, response);

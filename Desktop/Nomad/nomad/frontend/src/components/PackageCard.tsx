@@ -9,7 +9,7 @@ import { api } from "../lib/api";
 const PACKAGE_IMAGES: Record<string, string> = {
   "Weekend in Bengaluru": "https://picsum.photos/seed/bengaluru-weekend/400/240",
   "Mumbai Shoreline": "https://picsum.photos/seed/mumbai-shoreline/400/240",
-  "Delhi Heritage Trip": "https://picsum.photos/seed/delhi-heritage/400/240",
+  "Delhi Heritage Trip": "https://images.unsplash.com/photo-1665558646240-b2190160c400?w=400&h=240&fit=crop&q=80",
   "Hyderabad City Tour": "https://picsum.photos/seed/hyderabad-city/400/240",
   "Chennai Coastal Escape": "https://picsum.photos/seed/chennai-coastal/400/240",
   "Kolkata Culture Trail": "https://picsum.photos/seed/kolkata-culture/400/240",
@@ -20,8 +20,11 @@ const PACKAGE_IMAGES: Record<string, string> = {
 const DEFAULT_PACKAGE_IMAGE = "https://picsum.photos/seed/nomad-package/400/240";
 
 function getPackageImageUrl(pkg: { imageUrl?: string | null; name?: string }): string {
+  // Prefer our curated image for known packages (overrides API so we always show the right image)
+  const byName = pkg.name ? PACKAGE_IMAGES[pkg.name] : undefined;
+  if (byName) return byName;
   if (pkg.imageUrl) return pkg.imageUrl;
-  return PACKAGE_IMAGES[pkg.name || ""] || DEFAULT_PACKAGE_IMAGE;
+  return DEFAULT_PACKAGE_IMAGE;
 }
 
 type Props = {

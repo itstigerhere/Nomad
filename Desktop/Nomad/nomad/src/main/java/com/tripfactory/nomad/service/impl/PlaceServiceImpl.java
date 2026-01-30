@@ -11,6 +11,7 @@ import com.tripfactory.nomad.api.dto.PlaceResponse;
 import com.tripfactory.nomad.domain.entity.Place;
 import com.tripfactory.nomad.domain.enums.InterestType;
 import com.tripfactory.nomad.repository.PlaceRepository;
+import com.tripfactory.nomad.service.PlaceReviewService;
 import com.tripfactory.nomad.service.PlaceService;
 
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 public class PlaceServiceImpl implements PlaceService {
 
     private final PlaceRepository placeRepository;
+    private final PlaceReviewService placeReviewService;
 
     @Override
     public PlaceResponse getById(Long id) {
@@ -77,7 +79,9 @@ public class PlaceServiceImpl implements PlaceService {
         response.setLatitude(place.getLatitude());
         response.setLongitude(place.getLongitude());
         response.setCategory(place.getCategory());
-        response.setRating(place.getRating());
+        // Use average from actual place reviews when available; otherwise fall back to place's stored rating
+        Double reviewAverage = placeReviewService.getAverageRatingByPlace(place.getId());
+        response.setRating(reviewAverage != null ? reviewAverage : place.getRating());
         response.setDistanceKm(haversineKm(userLat, userLon, place.getLatitude(), place.getLongitude()));
         response.setDescription(place.getDescription());
         response.setImageUrl(place.getImageUrl());

@@ -49,7 +49,7 @@ public class PackageServiceImpl implements PackageService {
 
         packages.add(buildSummary("Weekend in Bengaluru", "A curated 2-day Bengaluru weekend with food, parks and nightlife.", new BigDecimal("4999"), bengaluru, "https://picsum.photos/seed/bengaluru-weekend/400/240"));
         packages.add(buildSummary("Mumbai Shoreline", "Explore beaches, bazaars and local cuisine in Mumbai.", new BigDecimal("5999"), mumbai, "https://picsum.photos/seed/mumbai-shoreline/400/240"));
-        packages.add(buildSummary("Delhi Heritage Trip", "Historical walks, markets and cultural experiences in Delhi.", new BigDecimal("5499"), delhi, "https://picsum.photos/seed/delhi-heritage/400/240"));
+        packages.add(buildSummary("Delhi Heritage Trip", "Historical walks, markets and cultural experiences in Delhi.", new BigDecimal("5499"), delhi, "https://images.unsplash.com/photo-1665558646240-b2190160c400?w=400&h=240&fit=crop&q=80"));
         packages.add(buildSummary("Hyderabad City Tour", "Charminar, Golconda Fort, biryani trails and bazaars in the City of Pearls.", new BigDecimal("4699"), hyderabad, "https://picsum.photos/seed/hyderabad-city/400/240"));
         packages.add(buildSummary("Chennai Coastal Escape", "Marina Beach, temples, museums and coastal food in Chennai.", new BigDecimal("5299"), chennai, "https://picsum.photos/seed/chennai-coastal/400/240"));
         packages.add(buildSummary("Kolkata Culture Trail", "Victoria Memorial, Park Street, ghats and Bengali cuisine in Kolkata.", new BigDecimal("4899"), kolkata, "https://picsum.photos/seed/kolkata-culture/400/240"));
@@ -159,7 +159,7 @@ public class PackageServiceImpl implements PackageService {
             places = placeRepository.findAll();
         }
 
-        List<PlaceResponse> placeResponses = places.stream().limit(5).map(p -> {
+        List<PlaceResponse> placeResponses = places.stream().limit(8).map(p -> {
             PlaceResponse pr = new PlaceResponse();
             pr.setId(p.getId());
             pr.setName(p.getName());
@@ -168,11 +168,15 @@ public class PackageServiceImpl implements PackageService {
             pr.setLongitude(p.getLongitude());
             pr.setCategory(p.getCategory());
             pr.setRating(p.getRating());
+            pr.setDescription(p.getDescription());
+            pr.setImageUrl(p.getImageUrl());
+            pr.setOpeningHours(p.getOpeningHours());
             return pr;
         }).collect(Collectors.toList());
 
         detail.setPlaces(placeResponses);
-        detail.setActivities(List.of("Guided tour", "Local food tasting", "Photo stops"));
+        // Activities derived from package theme (real itineraries use these)
+        detail.setActivities(List.of("Guided tour at key landmarks", "Local food tasting", "Photo stops", "Free time for exploration"));
 
         double avg = placeResponses.stream().mapToDouble(p -> p.getRating() == null ? 0.0 : p.getRating()).average().orElse(0.0);
         detail.setAverageRating(avg);

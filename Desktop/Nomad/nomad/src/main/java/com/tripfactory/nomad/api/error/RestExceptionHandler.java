@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.tripfactory.nomad.service.exception.BadRequestException;
 import com.tripfactory.nomad.service.exception.ResourceNotFoundException;
@@ -31,6 +32,13 @@ public class RestExceptionHandler {
                 .map(error -> error.getField() + " " + error.getDefaultMessage())
                 .orElse("Validation failed");
         return buildError(message, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ApiError> handleResponseStatus(ResponseStatusException ex) {
+        String message = ex.getReason() != null ? ex.getReason() : ex.getStatusCode().toString();
+        HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
+        return buildError(message, status);
     }
 
     @ExceptionHandler(Exception.class)

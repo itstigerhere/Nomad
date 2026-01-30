@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import MapView from "@/components/MapView";
@@ -114,7 +114,8 @@ function StarInput({ value, onChange }: { value: number; onChange: (v: number) =
 
 export default function TripSummaryPage() {
   const params = useParams();
-  const tripId = params.id;
+  const router = useRouter();
+  const tripId = params?.id as string | undefined;
   const [selectedPlanIdx, setSelectedPlanIdx] = useState<number | null>(null);
   const [summary, setSummary] = useState<any>(null);
   const [reviewSummary, setReviewSummary] = useState<ReviewSummary | null>(null);
@@ -378,14 +379,23 @@ export default function TripSummaryPage() {
                         type="button"
                         disabled={cancelLoading}
                         onClick={async () => {
-                          if (!summary?.tripRequestId) return;
+                          const id = summary?.tripRequestId ?? tripId;
+                          if (id == null || id === "") return;
+                          const numId = Number(id);
+                          if (Number.isNaN(numId)) return;
                           setCancelError(null);
                           setCancelLoading(true);
                           try {
-                            await cancelTrip(summary.tripRequestId);
-                            await loadTrip();
+                            await cancelTrip(numId);
+                            router.push("/trips");
                           } catch (e: any) {
-                            setCancelError(e?.response?.data?.message || "Failed to cancel trip");
+                            const msg =
+                              e?.response?.data?.message ??
+                              e?.response?.data?.detail ??
+                              e?.response?.data?.error ??
+                              e?.message ??
+                              "Failed to cancel trip";
+                            setCancelError(typeof msg === "string" ? msg : "Failed to cancel trip");
                           } finally {
                             setCancelLoading(false);
                           }
