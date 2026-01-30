@@ -16,7 +16,19 @@ type User = {
 export default function Header() {
   const [user, setUser] = useState<User | null>(null);
   const [theme, setTheme] = useState("light");
+  const [searchQuery, setSearchQuery] = useState("");
   const router = useRouter();
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = searchQuery.trim();
+    if (q) {
+      router.push(`/packages?city=${encodeURIComponent(q)}`);
+      setSearchQuery("");
+    } else {
+      router.push("/packages");
+    }
+  };
 
   useEffect(() => {
     const token =
@@ -76,7 +88,7 @@ export default function Header() {
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 sm:h-20 items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2 shrink-0">
             <Image
               src={theme === "dark" ? "/nomads_l_.svg" : "/nomads_d_.svg"}
               alt="NOMADS"
@@ -87,7 +99,21 @@ export default function Header() {
             />
           </Link>
 
-          <nav className="flex items-center gap-6">
+          <form onSubmit={handleSearch} className="hidden sm:flex flex-1 max-w-xs lg:max-w-sm mx-4">
+            <input
+              type="search"
+              placeholder="Search packages (city, name…)"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/50 px-3 py-2 text-sm placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              aria-label="Search packages"
+            />
+            <button type="submit" className="ml-2 rounded-xl px-3 py-2 text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 transition shrink-0">
+              Search
+            </button>
+          </form>
+
+          <nav className="flex items-center gap-4 sm:gap-6 shrink-0">
             <Link href="/" className={linkClass}>
               Home
             </Link>
@@ -103,6 +129,18 @@ export default function Header() {
             <Link href="/payment" className={linkClass}>
               Payment
             </Link>
+            <Link href="/faq" className={linkClass}>
+              FAQ
+            </Link>
+            <Link href="/packages" className={linkClass}>
+              Packages
+            </Link>
+
+            {user && (
+              <Link href="/wishlist" className={linkClass}>
+                Wishlist
+              </Link>
+            )}
 
             {user?.role === "ADMIN" && (
               <>
@@ -151,12 +189,30 @@ export default function Header() {
                     {user.email.split("@")[0]}
                   </span>
                 </button>
-                <div className="absolute right-0 mt-2 w-40 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                <div className="absolute right-0 mt-2 w-44 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
                   <Link
                     href="/profile"
                     className="block px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
                   >
                     Profile
+                  </Link>
+                  <Link
+                    href="/wishlist"
+                    className="block px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
+                  >
+                    Wishlist
+                  </Link>
+                  <Link
+                    href="/pro"
+                    className="block px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
+                  >
+                    Pro
+                  </Link>
+                  <Link
+                    href="/invite"
+                    className="block px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
+                  >
+                    Invite friends
                   </Link>
                   <button
                     type="button"

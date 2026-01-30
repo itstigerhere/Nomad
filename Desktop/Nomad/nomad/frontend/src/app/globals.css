@@ -100,3 +100,19 @@ body {
     transform: scale(1);
   }
 }
+
+/* Print: hide header/footer and non-print elements */
+@media print {
+  header,
+  footer,
+  .print\:hidden {
+    display: none !important;
+  }
+  main {
+    padding-top: 0;
+  }
+  .card {
+    box-shadow: none;
+    border: 1px solid #ccc;
+  }
+}

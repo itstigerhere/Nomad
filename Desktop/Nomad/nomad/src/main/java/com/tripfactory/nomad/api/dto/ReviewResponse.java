@@ -15,6 +15,7 @@ public class ReviewResponse {
     private Long tripRequestId;
     private Integer rating;
     private String comment;
+    private Boolean verified;
     private LocalDateTime createdAt;
     private String reviewerEmail;
 }

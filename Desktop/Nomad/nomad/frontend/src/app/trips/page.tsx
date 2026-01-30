@@ -33,15 +33,34 @@ const TripsPage: React.FC = () => {
     fetchTrips();
   }, []);
 
+  const hasAny = enrolledTrips.length > 0 || pastTrips.length > 0;
+
   return (
-    <div className="max-w-2xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-4">Trips</h1>
-      {loading && <div>Loading...</div>}
-      {error && <div className="text-red-500">{error}</div>}
+    <div className="section py-8 max-w-2xl mx-auto">
+      <h1 className="text-2xl font-bold mb-4">My Trips</h1>
+      {loading && (
+        <div className="card p-6 animate-pulse space-y-3">
+          <div className="h-5 w-1/2 bg-slate-200 dark:bg-slate-700 rounded" />
+          <div className="h-14 w-full bg-slate-200 dark:bg-slate-700 rounded" />
+          <div className="h-14 w-full bg-slate-200 dark:bg-slate-700 rounded" />
+        </div>
+      )}
+      {error && <div className="card p-4 text-red-600 dark:text-red-400">{error}</div>}
+      {!loading && !error && !hasAny && (
+        <div className="card p-8 text-center">
+          <p className="text-slate-600 dark:text-slate-400 mb-4">You don&apos;t have any trips yet. Enroll in a package or plan a trip to get started.</p>
+          <div className="flex flex-wrap gap-3 justify-center">
+            <Link href="/packages" className="btn-primary">Browse packages</Link>
+            <Link href="/trip-planner" className="btn-outline">Trip planner</Link>
+          </div>
+        </div>
+      )}
+      {!loading && hasAny && (
+      <>
       <div className="mb-6">
         <h2 className="text-lg font-semibold mb-2">Currently Enrolled Trips</h2>
         <ul className="space-y-3">
-          {enrolledTrips.length === 0 && <li className="text-gray-500">No enrolled trips.</li>}
+          {enrolledTrips.length === 0 && <li className="text-slate-500 dark:text-slate-400">No enrolled trips.</li>}
           {enrolledTrips.map((trip) => (
              <li key={trip.tripRequestId} className="border rounded-lg p-4 flex justify-between items-center hover:shadow">
                <Link href={`/trip-summary/${trip.tripRequestId}`} className="font-semibold text-blue-600 hover:underline">
@@ -67,18 +86,20 @@ const TripsPage: React.FC = () => {
       <div>
         <h2 className="text-lg font-semibold mb-2">Past Trips</h2>
         <ul className="space-y-3">
-          {pastTrips.length === 0 && <li className="text-gray-500">No past trips.</li>}
+          {pastTrips.length === 0 && <li className="text-slate-500 dark:text-slate-400">No past trips.</li>}
           {pastTrips.map((trip) => (
-            <li key={trip.tripRequestId} className="border rounded-lg p-4 flex justify-between items-center hover:shadow">
-              <Link href={`/trip-summary/${trip.tripRequestId}`} className="font-semibold text-blue-600 hover:underline">
+            <li key={trip.tripRequestId} className="border rounded-lg p-4 flex justify-between items-center hover:shadow card">
+              <Link href={`/trip-summary/${trip.tripRequestId}`} className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline">
                 {formatTripId(trip.tripRequestId)}
               </Link>
-              <span className="px-2 py-1 rounded bg-gray-100 text-xs font-medium">{trip.status}</span>
+              <span className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-700 text-xs font-medium">{trip.status}</span>
               <span className="font-bold">₹ {trip.estimatedCost ?? 0}</span>
             </li>
           ))}
         </ul>
       </div>
+      </>
+      )}
     </div>
   );
 };

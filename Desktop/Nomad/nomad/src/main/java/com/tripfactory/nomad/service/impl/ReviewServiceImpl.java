@@ -11,6 +11,7 @@ import com.tripfactory.nomad.api.dto.ReviewResponse;
 import com.tripfactory.nomad.domain.entity.Review;
 import com.tripfactory.nomad.domain.entity.TripRequest;
 import com.tripfactory.nomad.domain.entity.User;
+import com.tripfactory.nomad.domain.enums.TripStatus;
 import com.tripfactory.nomad.repository.ReviewRepository;
 import com.tripfactory.nomad.repository.TripRequestRepository;
 import com.tripfactory.nomad.repository.UserRepository;
@@ -36,6 +37,9 @@ public class ReviewServiceImpl implements ReviewService {
         if (currentUser == null) {
             throw new BadRequestException("You must be logged in to submit a review");
         }
+        if (tripRequest.getStatus() != TripStatus.CONFIRMED) {
+            throw new BadRequestException("You can only review a trip after it is confirmed (paid)");
+        }
         if (reviewRepository.existsByTripRequestIdAndUserId(tripRequest.getId(), currentUser.getId())) {
             throw new BadRequestException("You have already reviewed this trip");
         }
@@ -45,6 +49,7 @@ public class ReviewServiceImpl implements ReviewService {
         review.setUser(currentUser);
         review.setRating(request.getRating());
         review.setComment(request.getComment());
+        review.setVerified(true); // Only paid (CONFIRMED) trip owners can review
         Review saved = reviewRepository.save(review);
         return toResponse(saved);
     }
@@ -81,6 +86,7 @@ public class ReviewServiceImpl implements ReviewService {
         response.setTripRequestId(review.getTripRequest().getId());
         response.setRating(review.getRating());
         response.setComment(review.getComment());
+        response.setVerified(Boolean.TRUE.equals(review.getVerified()));
         response.setCreatedAt(review.getCreatedAt());
         if (review.getUser() != null) {
             response.setReviewerEmail(review.getUser().getEmail());

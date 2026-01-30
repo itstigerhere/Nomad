@@ -41,6 +41,10 @@ public class Review {
     @Column
     private String comment;
 
+    /** True when review is from the user who completed a paid (CONFIRMED) trip. */
+    @Column(nullable = false)
+    private Boolean verified;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
@@ -48,6 +52,9 @@ public class Review {
     public void prePersist() {
         if (createdAt == null) {
             createdAt = LocalDateTime.now();
+        }
+        if (verified == null) {
+            verified = Boolean.TRUE;
         }
     }
 }

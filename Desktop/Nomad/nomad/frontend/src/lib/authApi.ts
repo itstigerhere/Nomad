@@ -10,6 +10,7 @@ export async function register(payload: {
   longitude: number;
   interestType: string;
   travelPreference: string;
+  referralCode?: string;
 }) {
   const { data } = await api.post("/api/auth/register", payload);
   return data;
@@ -40,6 +41,7 @@ export type MeResponse = {
   travelPreference?: string;
   role?: string;
   profilePhotoUrl?: string;
+  referralCode?: string;
 };
 
 export async function fetchMe() {

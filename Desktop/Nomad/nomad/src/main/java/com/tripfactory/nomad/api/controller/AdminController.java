@@ -19,15 +19,20 @@ import jakarta.validation.Valid;
 
 import com.tripfactory.nomad.api.dto.AdminDashboardResponse;
 import com.tripfactory.nomad.api.dto.PlaceCreateRequest;
+import com.tripfactory.nomad.api.dto.ProActivateRequest;
 import com.tripfactory.nomad.api.dto.PlaceResponse;
 import com.tripfactory.nomad.api.dto.VehicleCreateRequest;
 import com.tripfactory.nomad.domain.entity.Place;
+import com.tripfactory.nomad.domain.entity.SponsoredPackage;
 import com.tripfactory.nomad.domain.entity.TripRequest;
 import com.tripfactory.nomad.domain.entity.Vehicle;
+import com.tripfactory.nomad.repository.PaymentRepository;
 import com.tripfactory.nomad.repository.PlaceRepository;
+import com.tripfactory.nomad.repository.SponsoredPackageRepository;
 import com.tripfactory.nomad.repository.TripRequestRepository;
 import com.tripfactory.nomad.repository.UserRepository;
 import com.tripfactory.nomad.repository.VehicleRepository;
+import com.tripfactory.nomad.service.ProSubscriptionService;
 import com.tripfactory.nomad.service.exception.ResourceNotFoundException;
 
 import org.springframework.data.domain.PageRequest;
@@ -46,6 +51,9 @@ public class AdminController {
     private final VehicleRepository vehicleRepository;
     private final TripRequestRepository tripRequestRepository;
     private final UserRepository userRepository;
+    private final PaymentRepository paymentRepository;
+    private final ProSubscriptionService proSubscriptionService;
+    private final SponsoredPackageRepository sponsoredPackageRepository;
 
     @PostMapping("/places")
     public ResponseEntity<PlaceResponse> createPlace(@Valid @RequestBody PlaceCreateRequest request) {
@@ -111,9 +119,40 @@ public class AdminController {
         response.setUserCount(userRepository.count());
         response.setTripCount(tripRequestRepository.count());
         response.setPlaceCount(placeRepository.count());
+        response.setTotalCommission(paymentRepository.sumCommissionFromCapturedPayments());
         List<TripRequest> recent = tripRequestRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(0, RECENT_TRIPS_LIMIT));
         response.setRecentTrips(recent.stream().map(this::toRecentTripSummary).toList());
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/sponsored")
+    public ResponseEntity<Void> addSponsored(@RequestBody java.util.Map<String, Long> body) {
+        Long packageId = body != null ? body.get("packageId") : null;
+        if (packageId == null) {
+            throw new ResourceNotFoundException("packageId is required");
+        }
+        if (sponsoredPackageRepository.existsByPackageId(packageId)) {
+            return ResponseEntity.ok().build();
+        }
+        SponsoredPackage sp = new SponsoredPackage();
+        sp.setPackageId(packageId);
+        sponsoredPackageRepository.save(sp);
+        return new ResponseEntity<>(HttpStatus.CREATED);
+    }
+
+    @DeleteMapping("/sponsored/{packageId}")
+    public ResponseEntity<Void> removeSponsored(@PathVariable Long packageId) {
+        sponsoredPackageRepository.deleteByPackageId(packageId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/pro/activate")
+    public ResponseEntity<Void> activatePro(@Valid @RequestBody ProActivateRequest request) {
+        if (request.getUserId() == null || request.getValidUntil() == null || request.getPlan() == null) {
+            throw new ResourceNotFoundException("userId, plan and validUntil are required");
+        }
+        proSubscriptionService.activatePro(request.getUserId(), request.getPlan(), request.getValidUntil());
+        return ResponseEntity.ok().build();
     }
 
     @GetMapping("/trips")

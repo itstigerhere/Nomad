@@ -5,6 +5,7 @@ export type Review = {
   tripRequestId: number;
   rating: number;
   comment?: string;
+  verified?: boolean;
   createdAt: string;
   reviewerEmail?: string;
 };

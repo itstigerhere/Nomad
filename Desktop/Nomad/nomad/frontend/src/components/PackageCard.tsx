@@ -54,7 +54,10 @@ export default function PackageCard({ pkg }: Props) {
   const imgSrc = imgError ? DEFAULT_PACKAGE_IMAGE : getPackageImageUrl(pkg);
 
   return (
-    <div className="card p-4">
+    <div className="card p-4 relative">
+      {pkg.sponsored && (
+        <span className="absolute top-3 left-3 z-10 text-xs font-semibold px-2 py-1 rounded bg-amber-500 text-white">Sponsored</span>
+      )}
       <img
         src={imgSrc}
         alt={pkg.name}

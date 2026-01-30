@@ -14,6 +14,7 @@ export default function PaymentPage() {
   const [orderId, setOrderId] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [promoCode, setPromoCode] = useState("");
   const keyId = (process as any)?.env?.NEXT_PUBLIC_RAZORPAY_KEY_ID || "";
   const searchParams = useSearchParams();
 
@@ -67,7 +68,11 @@ export default function PaymentPage() {
 
     let data;
     try {
-      data = await createPayment({ tripRequestId: Number(tripId), amount: Number(amount) });
+      data = await createPayment({
+        tripRequestId: Number(tripId),
+        amount: Number(amount),
+        ...(promoCode.trim() ? { promoCode: promoCode.trim() } : {}),
+      });
     } catch (e: any) {
       setError(e?.response?.data?.message || e?.message || "Payment creation failed");
       return;
@@ -75,6 +80,7 @@ export default function PaymentPage() {
 
     setOrderId(data.razorpayOrderId);
     setStatus(data.paymentStatus);
+    const totalAmount = (Number(data.amount) || 0) + (Number(data.convenienceFee) || 0);
 
     const loaded = await loadRazorpayScript();
     if (!loaded) {
@@ -88,7 +94,7 @@ export default function PaymentPage() {
 
     const options = {
       key: keyId,
-      amount: Number(amount) * 100,
+      amount: Math.round(totalAmount * 100),
       currency: "INR",
       name: "NOMAD",
       description: "Weekend Trip Payment",
@@ -147,7 +153,19 @@ export default function PaymentPage() {
             <span className="text-sm font-semibold">Amount (INR)</span>
             <input value={amount} onChange={(e) => setAmount(e.target.value)} className="border rounded-xl px-4 py-2" />
           </label>
+          <label className="space-y-2 md:col-span-2">
+            <span className="text-sm font-semibold">Promo code (optional)</span>
+            <input
+              value={promoCode}
+              onChange={(e) => setPromoCode(e.target.value)}
+              placeholder="e.g. WELCOME10"
+              className="border rounded-xl px-4 py-2 w-full max-w-xs"
+            />
+          </label>
         </div>
+        <p className="text-sm text-slate-600 dark:text-slate-400">
+          A convenience fee may apply at checkout. Pro members get no fee.
+        </p>
             <div className="flex gap-3">
               <button className="btn-primary" onClick={handleCreate} disabled={!tripId || Number(tripId) <= 0}>Pay with Razorpay</button>
             </div>

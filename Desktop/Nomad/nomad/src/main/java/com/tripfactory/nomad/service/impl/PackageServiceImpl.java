@@ -2,7 +2,10 @@ package com.tripfactory.nomad.service.impl;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Stream;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
@@ -12,19 +15,25 @@ import com.tripfactory.nomad.api.dto.PackageDetailResponse;
 import com.tripfactory.nomad.api.dto.PackageSummaryResponse;
 import com.tripfactory.nomad.api.dto.PlaceResponse;
 import com.tripfactory.nomad.domain.entity.Place;
+import com.tripfactory.nomad.domain.entity.SponsoredPackage;
 import com.tripfactory.nomad.repository.PlaceRepository;
+import com.tripfactory.nomad.repository.SponsoredPackageRepository;
 import com.tripfactory.nomad.service.PackageService;
 
 import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
 
 @Service
-@RequiredArgsConstructor
 public class PackageServiceImpl implements PackageService {
 
     private final PlaceRepository placeRepository;
+    private final SponsoredPackageRepository sponsoredPackageRepository;
     private final AtomicLong idGenerator = new AtomicLong(100);
     private final List<PackageSummaryResponse> packages = new ArrayList<>();
+
+    public PackageServiceImpl(PlaceRepository placeRepository, SponsoredPackageRepository sponsoredPackageRepository) {
+        this.placeRepository = placeRepository;
+        this.sponsoredPackageRepository = sponsoredPackageRepository;
+    }
 
     @PostConstruct
     public void init() {
@@ -61,18 +70,70 @@ public class PackageServiceImpl implements PackageService {
 
     @Override
     public List<PackageSummaryResponse> getHomepagePackages() {
-        return packages.stream().limit(3).collect(Collectors.toList());
+        Set<Long> sponsoredIds = sponsoredPackageRepository.findAllByOrderByIdAsc().stream()
+                .map(SponsoredPackage::getPackageId).collect(Collectors.toSet());
+        List<PackageSummaryResponse> result = packages.stream().limit(3)
+                .map(p -> withSponsored(p, sponsoredIds)).sorted(sponsoredFirst()).collect(Collectors.toList());
+        return result;
     }
 
     @Override
     public List<PackageSummaryResponse> getAllPackages() {
-        return new ArrayList<>(packages);
+        return getPackagesSearch(null, null, null, null);
+    }
+
+    @Override
+    public List<PackageSummaryResponse> getPackagesSearch(String city, BigDecimal minPrice, BigDecimal maxPrice, String sortBy) {
+        Set<Long> sponsoredIds = sponsoredPackageRepository.findAllByOrderByIdAsc().stream()
+                .map(SponsoredPackage::getPackageId).collect(Collectors.toSet());
+        Stream<PackageSummaryResponse> stream = packages.stream().map(p -> withSponsored(p, sponsoredIds));
+        String c = city != null && !city.isBlank() ? city.trim().toLowerCase() : null;
+        if (c != null) {
+            stream = stream.filter(p -> p.getName() != null && p.getName().toLowerCase().contains(c));
+        }
+        if (minPrice != null && minPrice.compareTo(BigDecimal.ZERO) > 0) {
+            stream = stream.filter(p -> p.getPrice() != null && p.getPrice().compareTo(minPrice) >= 0);
+        }
+        if (maxPrice != null && maxPrice.compareTo(BigDecimal.ZERO) > 0) {
+            stream = stream.filter(p -> p.getPrice() != null && p.getPrice().compareTo(maxPrice) <= 0);
+        }
+        Comparator<PackageSummaryResponse> cmp = sponsoredFirst();
+        if (sortBy != null && !sortBy.isBlank()) {
+            switch (sortBy.toLowerCase()) {
+                case "price_asc" -> cmp = Comparator.nullsLast(Comparator.comparing(PackageSummaryResponse::getPrice)).thenComparing(PackageSummaryResponse::getId);
+                case "price_desc" -> cmp = Comparator.nullsLast(Comparator.comparing(PackageSummaryResponse::getPrice, Comparator.reverseOrder())).thenComparing(PackageSummaryResponse::getId);
+                case "name" -> cmp = Comparator.nullsLast(Comparator.comparing((PackageSummaryResponse p) -> p.getName() != null ? p.getName().toLowerCase() : "")).thenComparing(PackageSummaryResponse::getId);
+                default -> { }
+            }
+        }
+        return stream.sorted(cmp).collect(Collectors.toList());
+    }
+
+    private PackageSummaryResponse withSponsored(PackageSummaryResponse p, Set<Long> sponsoredIds) {
+        PackageSummaryResponse copy = new PackageSummaryResponse();
+        copy.setId(p.getId());
+        copy.setName(p.getName());
+        copy.setShortDescription(p.getShortDescription());
+        copy.setPrice(p.getPrice());
+        copy.setImageUrl(p.getImageUrl());
+        copy.setSponsored(sponsoredIds.contains(p.getId()));
+        return copy;
+    }
+
+    private Comparator<PackageSummaryResponse> sponsoredFirst() {
+        return Comparator.<PackageSummaryResponse, Boolean>comparing(p -> !Boolean.TRUE.equals(p.getSponsored()))
+                .thenComparing(PackageSummaryResponse::getId);
     }
 
     @Override
     public PackageDetailResponse getPackageById(Long id) {
-        PackageSummaryResponse summary = packages.stream().filter(p -> p.getId().equals(id)).findFirst().orElse(null);
-        if (summary == null) return null;
+        Set<Long> sponsoredIds = sponsoredPackageRepository.findAllByOrderByIdAsc().stream()
+                .map(SponsoredPackage::getPackageId).collect(Collectors.toSet());
+        PackageSummaryResponse summary = packages.stream()
+                .filter(p -> p.getId().equals(id)).findFirst().orElse(null);
+        if (summary == null) {
+            return null;
+        }
 
         PackageDetailResponse detail = new PackageDetailResponse();
         detail.setId(summary.getId());
@@ -80,6 +141,7 @@ public class PackageServiceImpl implements PackageService {
         detail.setDescription(summary.getShortDescription());
         detail.setPrice(summary.getPrice());
         detail.setImageUrl(summary.getImageUrl());
+        detail.setSponsored(sponsoredIds.contains(id));
 
         // Attach places from the package's city
         String name = summary.getName().toLowerCase();

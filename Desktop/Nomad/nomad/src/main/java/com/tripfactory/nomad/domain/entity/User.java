@@ -67,6 +67,10 @@ public class User {
     @Column
     private String profilePhotoUrl;
 
+    /** Unique code for referral link (e.g. NOMAD8a3f). */
+    @Column(unique = true)
+    private String referralCode;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 

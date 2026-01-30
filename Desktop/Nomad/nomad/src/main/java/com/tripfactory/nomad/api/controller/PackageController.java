@@ -1,5 +1,6 @@
 package com.tripfactory.nomad.api.controller;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.tripfactory.nomad.api.dto.PackageDetailResponse;
@@ -47,6 +49,15 @@ public class PackageController {
         return ResponseEntity.ok(packageService.getAllPackages());
     }
 
+    @GetMapping("/search")
+    public ResponseEntity<List<PackageSummaryResponse>> searchPackages(
+            @RequestParam(required = false) String city,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) String sort) {
+        return ResponseEntity.ok(packageService.getPackagesSearch(city, minPrice, maxPrice, sort));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<PackageDetailResponse> packageDetails(@PathVariable Long id) {
         PackageDetailResponse d = packageService.getPackageById(id);
@@ -80,6 +91,9 @@ public class PackageController {
             }
         } else {
             trip.setEstimatedCost(0.0);
+        }
+        if (request.getTravelDate() != null) {
+            trip.setTravelDate(request.getTravelDate());
         }
         trip = tripRequestRepository.save(trip);
 

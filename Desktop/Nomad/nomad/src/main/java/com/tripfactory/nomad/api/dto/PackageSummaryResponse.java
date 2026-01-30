@@ -15,4 +15,5 @@ public class PackageSummaryResponse {
     private String shortDescription;
     private BigDecimal price;
     private String imageUrl;
+    private Boolean sponsored;
 }

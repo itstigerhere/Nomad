@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import ProtectedPage from "@/components/ProtectedPage";
 import { fetchMe, fetchMeFresh } from "@/lib/authApi";
+import { getProStatus } from "@/lib/proApi";
 import { updateUser, uploadProfilePhoto } from "@/lib/profileApi";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -33,6 +34,7 @@ export default function ProfilePage() {
     longitude: "",
     interestType: "CULTURE",
     travelPreference: "SOLO",
+    referralCode: "",
   });
   const [status, setStatus] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -41,6 +43,8 @@ export default function ProfilePage() {
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [proStatus, setProStatus] = useState<{ pro: boolean; validUntil: string | null } | null>(null);
+  const [referralCopied, setReferralCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const pathname = usePathname();
@@ -58,9 +62,11 @@ export default function ProfilePage() {
           longitude: String(data.longitude ?? ""),
           interestType: data.interestType ?? "CULTURE",
           travelPreference: data.travelPreference ?? "SOLO",
+          referralCode: data.referralCode ?? "",
         });
         setPhotoPreview(data.profilePhotoUrl ?? null);
       })
+      .then(() => getProStatus().then(setProStatus).catch(() => setProStatus(null)))
       .catch(() => setStatus("Failed to load profile"))
       .finally(() => setLoading(false));
   }, []);
@@ -323,6 +329,35 @@ export default function ProfilePage() {
                 </label>
               </div>
             </div>
+
+            {(proStatus?.pro || form.referralCode) && (
+              <div className="card p-6">
+                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide mb-4">
+                  Referral & Pro
+                </h3>
+                {proStatus?.pro && (
+                  <p className="text-sm text-emerald-600 dark:text-emerald-400 font-medium mb-2">
+                    ✓ Pro member {proStatus.validUntil ? `(valid until ${new Date(proStatus.validUntil).toLocaleDateString()})` : ""}
+                  </p>
+                )}
+                {form.referralCode && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm text-slate-600 dark:text-slate-400">Your referral code:</span>
+                    <code className="px-2 py-1 bg-slate-100 dark:bg-slate-700 rounded text-sm font-mono">{form.referralCode}</code>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const url = typeof window !== "undefined" ? `${window.location.origin}/auth?ref=${form.referralCode}` : "";
+                        if (url) navigator.clipboard.writeText(url).then(() => { setReferralCopied(true); setTimeout(() => setReferralCopied(false), 2000); });
+                      }}
+                      className="btn-outline text-sm py-1 px-2"
+                    >
+                      {referralCopied ? "Copied!" : "Copy link"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="card p-6">
               <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide mb-4">

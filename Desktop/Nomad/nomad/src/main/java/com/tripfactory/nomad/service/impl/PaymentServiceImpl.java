@@ -27,6 +27,8 @@ import com.tripfactory.nomad.repository.PaymentRepository;
 import com.tripfactory.nomad.repository.TripRequestRepository;
 import com.tripfactory.nomad.service.NotificationService;
 import com.tripfactory.nomad.service.PaymentService;
+import com.tripfactory.nomad.service.ProSubscriptionService;
+import com.tripfactory.nomad.service.ReferralService;
 import com.tripfactory.nomad.service.exception.BadRequestException;
 import com.tripfactory.nomad.service.exception.ResourceNotFoundException;
 
@@ -41,10 +43,22 @@ public class PaymentServiceImpl implements PaymentService {
     private final RazorpayClient razorpayClient;
     private final RazorpayProperties razorpayProperties;
     private final NotificationService notificationService;
+    private final ProSubscriptionService proSubscriptionService;
+    private final ReferralService referralService;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private static final Logger log = LoggerFactory.getLogger(PaymentServiceImpl.class);
     @Value("${nomad.dev-payments:false}")
     private boolean devPayments;
+    @Value("${nomad.commission-percent:0}")
+    private int commissionPercent;
+    @Value("${nomad.booking-fee-fixed:0}")
+    private int bookingFeeFixed;
+    @Value("${nomad.booking-fee-percent:0}")
+    private int bookingFeePercent;
+    @Value("${nomad.promo.code:}")
+    private String promoCodeConfig;
+    @Value("${nomad.promo.percent:0}")
+    private int promoPercent;
 
     @Override
     @Transactional
@@ -56,14 +70,25 @@ public class PaymentServiceImpl implements PaymentService {
             throw new BadRequestException("amount is required");
         }
 
-        long amountPaise = request.getAmount().multiply(new BigDecimal("100")).longValue();
+        BigDecimal baseAmount = request.getAmount();
+        BigDecimal discount = applyPromo(request.getPromoCode(), baseAmount);
+        baseAmount = baseAmount.subtract(discount);
+        if (baseAmount.compareTo(BigDecimal.ZERO) < 0) {
+            baseAmount = BigDecimal.ZERO;
+        }
+        boolean isPro = proSubscriptionService.isPro(tripRequest.getUser().getId());
+        BigDecimal fee = isPro ? BigDecimal.ZERO : computeConvenienceFee(baseAmount);
+        BigDecimal totalAmount = baseAmount.add(fee);
+
+        long amountPaise = totalAmount.multiply(new BigDecimal("100")).longValue();
         if (devPayments) {
             log.info("devPayments enabled - creating fake order for tripId={}", tripRequest.getId());
             String fakeOrderId = "dev_order_" + System.currentTimeMillis();
             Payment payment = new Payment();
-            payment.setTripRequest(tripRequest);
-            payment.setAmount(request.getAmount());
-            payment.setRazorpayOrderId(fakeOrderId);
+        payment.setTripRequest(tripRequest);
+        payment.setAmount(baseAmount);
+        payment.setConvenienceFee(fee);
+        payment.setRazorpayOrderId(fakeOrderId);
             payment.setPaymentStatus(PaymentStatus.CREATED);
             Payment saved = paymentRepository.save(payment);
 
@@ -77,7 +102,8 @@ public class PaymentServiceImpl implements PaymentService {
 
         Payment payment = new Payment();
         payment.setTripRequest(tripRequest);
-        payment.setAmount(request.getAmount());
+        payment.setAmount(baseAmount); // after promo discount
+        payment.setConvenienceFee(fee);
         payment.setRazorpayOrderId(order.get("id"));
         payment.setPaymentStatus(PaymentStatus.CREATED);
         Payment saved = paymentRepository.save(payment);
@@ -104,14 +130,24 @@ public class PaymentServiceImpl implements PaymentService {
 
         payment.setRazorpayPaymentId(request.getRazorpayPaymentId());
         payment.setPaymentStatus(PaymentStatus.CAPTURED);
+        payment.setCommissionAmount(computeCommission(payment.getAmount()));
         Payment saved = paymentRepository.save(payment);
 
         TripRequest tripRequest = saved.getTripRequest();
         tripRequest.setStatus(TripStatus.CONFIRMED);
         tripRequestRepository.save(tripRequest);
 
-        notificationService.sendEmail(tripRequest.getUser().getEmail(), "NOMAD Payment Confirmed",
-            "Payment confirmed for trip " + tripRequest.getId());
+        long firstBooking = paymentRepository.countByUserIdAndPaymentStatus(tripRequest.getUser().getId(), PaymentStatus.CAPTURED);
+        if (firstBooking == 1) {
+            referralService.onFirstBookingCompleted(tripRequest.getUser().getId());
+        }
+
+        String emailBody = "Your booking is confirmed.\n\nTrip #" + tripRequest.getId()
+            + "\nCity: " + (tripRequest.getCity() != null ? tripRequest.getCity() : "N/A")
+            + "\nAmount: ₹" + (saved.getAmount() != null ? saved.getAmount() : "0")
+            + (tripRequest.getTravelDate() != null ? "\nTravel date: " + tripRequest.getTravelDate() : "")
+            + "\n\nView your trip at: " + (System.getenv("NOMAD_FRONTEND_URL") != null ? System.getenv("NOMAD_FRONTEND_URL") : "http://localhost:3000") + "/trip-summary/" + tripRequest.getId();
+        notificationService.sendEmail(tripRequest.getUser().getEmail(), "NOMAD – Booking confirmed", emailBody);
         String phone = tripRequest.getUser().getPhoneNumber();
         if (phone != null && !phone.isBlank()) {
             notificationService.sendSms(phone, "NOMAD: Payment confirmed for trip " + tripRequest.getId());
@@ -145,14 +181,22 @@ public class PaymentServiceImpl implements PaymentService {
             if ("payment.captured".equals(event)) {
                 payment.setPaymentStatus(PaymentStatus.CAPTURED);
                 payment.setRazorpayPaymentId(paymentId);
+                payment.setCommissionAmount(computeCommission(payment.getAmount()));
                 paymentRepository.save(payment);
 
                 TripRequest tripRequest = payment.getTripRequest();
                 tripRequest.setStatus(TripStatus.CONFIRMED);
                 tripRequestRepository.save(tripRequest);
 
-                notificationService.sendEmail(tripRequest.getUser().getEmail(), "NOMAD Payment Confirmed",
-                    "Payment confirmed for trip " + tripRequest.getId());
+                long firstBooking = paymentRepository.countByUserIdAndPaymentStatus(tripRequest.getUser().getId(), PaymentStatus.CAPTURED);
+                if (firstBooking == 1) {
+                    referralService.onFirstBookingCompleted(tripRequest.getUser().getId());
+                }
+
+                String emailBody = "Your booking is confirmed.\n\nTrip #" + tripRequest.getId()
+                    + "\nCity: " + (tripRequest.getCity() != null ? tripRequest.getCity() : "N/A")
+                    + "\nAmount: ₹" + (payment.getAmount() != null ? payment.getAmount() : "0");
+                notificationService.sendEmail(tripRequest.getUser().getEmail(), "NOMAD – Booking confirmed", emailBody);
                 String phone = tripRequest.getUser().getPhoneNumber();
                 if (phone != null && !phone.isBlank()) {
                     notificationService.sendSms(phone,
@@ -214,11 +258,35 @@ public class PaymentServiceImpl implements PaymentService {
         }
     }
 
+    private BigDecimal applyPromo(String code, BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) return BigDecimal.ZERO;
+        if (code == null || code.isBlank() || promoCodeConfig == null || promoCodeConfig.isBlank()) return BigDecimal.ZERO;
+        if (promoPercent <= 0) return BigDecimal.ZERO;
+        if (!code.trim().equalsIgnoreCase(promoCodeConfig.trim())) return BigDecimal.ZERO;
+        return amount.multiply(BigDecimal.valueOf(promoPercent)).divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal computeConvenienceFee(BigDecimal baseAmount) {
+        if (baseAmount == null) return BigDecimal.ZERO;
+        BigDecimal fixed = BigDecimal.valueOf(bookingFeeFixed);
+        BigDecimal percent = bookingFeePercent <= 0 ? BigDecimal.ZERO
+            : baseAmount.multiply(BigDecimal.valueOf(bookingFeePercent)).divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+        return fixed.add(percent);
+    }
+
+    private BigDecimal computeCommission(BigDecimal amount) {
+        if (amount == null || commissionPercent <= 0) {
+            return BigDecimal.ZERO;
+        }
+        return amount.multiply(BigDecimal.valueOf(commissionPercent)).divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+    }
+
     private PaymentCreateResponse toResponse(Payment payment) {
         PaymentCreateResponse response = new PaymentCreateResponse();
         response.setPaymentId(payment.getId());
         response.setTripRequestId(payment.getTripRequest().getId());
         response.setAmount(payment.getAmount());
+        response.setConvenienceFee(payment.getConvenienceFee());
         response.setRazorpayOrderId(payment.getRazorpayOrderId());
         response.setPaymentStatus(payment.getPaymentStatus());
         response.setCreatedAt(payment.getCreatedAt());

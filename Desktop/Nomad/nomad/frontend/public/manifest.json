@@ -1,0 +1,17 @@
+{
+  "name": "NOMAD - Weekend Travel",
+  "short_name": "NOMAD",
+  "description": "Plan smart city getaways with personalized itineraries, pickup support, and seamless payments.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f9fafb",
+  "theme_color": "#61c2a2",
+  "icons": [
+    {
+      "src": "/nomads_d_.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

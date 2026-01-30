@@ -1,5 +1,6 @@
 package com.tripfactory.nomad.api.dto;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -18,6 +19,8 @@ public class AdminDashboardResponse {
     private long userCount;
     private long tripCount;
     private long placeCount;
+    /** Total platform commission from captured payments. */
+    private BigDecimal totalCommission;
     private List<RecentTripSummary> recentTrips;
 
     @Getter

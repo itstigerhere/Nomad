@@ -26,4 +26,5 @@ public class UserResponse {
     private com.tripfactory.nomad.domain.enums.UserRole role;
     private LocalDateTime createdAt;
     private String profilePhotoUrl;
+    private String referralCode;
 }

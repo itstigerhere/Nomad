@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import MapView from "@/components/MapView";
 import ProtectedPage from "@/components/ProtectedPage";
+import { getCancellationPolicy, requestRefund } from "@/lib/refundApi";
 import {
   createReview,
   fetchReviewSummary,
@@ -14,7 +15,7 @@ import {
   type ReviewSummary,
 } from "@/lib/reviewApi";
 import { fetchRoute } from "@/lib/routeApi";
-import { fetchTrip } from "@/lib/tripApi";
+import { cancelTrip, fetchTrip } from "@/lib/tripApi";
 
 /** Format API date (array or string) to display string */
 function formatTravelDate(date: unknown): string {
@@ -128,6 +129,11 @@ export default function TripSummaryPage() {
   const [routeGeoJson, setRouteGeoJson] = useState<string | null>(null);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const [refundPolicy, setRefundPolicy] = useState<{ fullRefundDays: number; partialRefundDays: number; partialRefundPercent: number; estimatedRefundAmount: number } | null>(null);
+  const [refundLoading, setRefundLoading] = useState(false);
+  const [refundError, setRefundError] = useState<string | null>(null);
+  const [refundSuccess, setRefundSuccess] = useState(false);
+  const [refundReason, setRefundReason] = useState("User requested");
 
   const loadTrip = useCallback(async () => {
     if (!tripId) return;
@@ -168,6 +174,16 @@ export default function TripSummaryPage() {
   useEffect(() => {
     if (tripId) loadReviews();
   }, [tripId, loadReviews]);
+
+  useEffect(() => {
+    if (!tripId || !summary || summary.status !== "CONFIRMED") {
+      setRefundPolicy(null);
+      return;
+    }
+    getCancellationPolicy(Number(tripId))
+      .then(setRefundPolicy)
+      .catch(() => setRefundPolicy(null));
+  }, [tripId, summary?.status]);
 
   function getValidPlaces(places: any[]) {
     return places.filter(
@@ -245,11 +261,17 @@ export default function TripSummaryPage() {
     <ProtectedPage>
       <div className="section py-8 space-y-8">
         {/* Back link */}
-        <div className="flex items-center gap-4">
+        <nav className="flex flex-wrap items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+          <Link href="/">Home</Link>
+          <span>/</span>
+          <Link href="/trips">My Trips</Link>
+          <span>/</span>
+          <span className="text-slate-900 dark:text-white">Trip summary</span>
+        </nav>
+        <div className="flex flex-wrap items-center gap-3 mt-2">
           <Link href="/trips" className="text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100">
             ← My Trips
           </Link>
-          <span className="text-slate-400">|</span>
           <Link href="/" className="text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100">
             Home
           </Link>
@@ -257,8 +279,17 @@ export default function TripSummaryPage() {
 
         {summary && (
           <>
-            {/* Hero: trip title + key info */}
-            <div className="card p-6 md:p-8">
+            {/* Hero: trip title + key info — printable */}
+            <div className="card p-6 md:p-8" id="trip-summary-print">
+              <div className="flex flex-wrap items-center justify-end gap-2 mb-2 print:mb-4">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="btn-outline text-sm py-2 px-3 rounded-lg print:hidden"
+                >
+                  Print / Save PDF
+                </button>
+              </div>
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white">
@@ -303,9 +334,25 @@ export default function TripSummaryPage() {
                   >
                     {shareCopied ? "Copied!" : "Copy link"}
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      copyShareLink();
+                      if (typeof window !== "undefined" && (navigator as any).share && summary.city) {
+                        (navigator as any).share({
+                          title: `Trip to ${summary.city}`,
+                          url: shareUrl,
+                          text: `Check out my trip to ${summary.city}`,
+                        }).catch(() => {});
+                      }
+                    }}
+                    className="btn-primary text-sm py-2 px-3 rounded-lg"
+                  >
+                    Share
+                  </button>
                   <a
                     href={`/share/${summary.shareToken}`}
-                    className="text-sm text-brand-700 dark:text-brand-400 underline"
+                    className="text-sm text-emerald-600 dark:text-emerald-400 underline"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -350,6 +397,57 @@ export default function TripSummaryPage() {
                     )}
                   </div>
                   {cancelError && <p className="text-sm text-red-600 dark:text-red-400 mt-2">{cancelError}</p>}
+                </div>
+              )}
+
+              {summary.status === "CONFIRMED" && refundPolicy && (
+                <div className="mt-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Cancellation policy</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                    Full refund if cancelled {refundPolicy.fullRefundDays}+ days before travel; {refundPolicy.partialRefundPercent}% refund if {refundPolicy.partialRefundDays}–{refundPolicy.fullRefundDays} days before; no refund within {refundPolicy.partialRefundDays} days.
+                  </p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                    Estimated refund for this trip: ₹{refundPolicy.estimatedRefundAmount ?? 0}
+                  </p>
+                  {Number(refundPolicy.estimatedRefundAmount) > 0 && (
+                    <div className="mt-3 space-y-2">
+                      <label className="block text-sm text-slate-600 dark:text-slate-400">
+                        Reason (optional)
+                        <select
+                          value={refundReason}
+                          onChange={(e) => setRefundReason(e.target.value)}
+                          className="ml-2 rounded-lg border border-slate-200 dark:border-slate-600 px-2 py-1 text-sm bg-transparent"
+                        >
+                          <option value="User requested">Change of plans</option>
+                          <option value="Schedule conflict">Schedule conflict</option>
+                          <option value="Duplicate booking">Duplicate booking</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </label>
+                      <button
+                        type="button"
+                        disabled={refundLoading || refundSuccess}
+                        onClick={async () => {
+                          if (!summary?.tripRequestId) return;
+                          setRefundError(null);
+                          setRefundLoading(true);
+                          try {
+                            await requestRefund({ tripRequestId: summary.tripRequestId, reason: refundReason });
+                            setRefundSuccess(true);
+                            await loadTrip();
+                          } catch (e: any) {
+                            setRefundError(e?.response?.data?.message || "Refund request failed");
+                          } finally {
+                            setRefundLoading(false);
+                          }
+                        }}
+                        className="btn-outline text-sm py-2 px-4 rounded-lg border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-900/20"
+                      >
+                        {refundLoading ? "Requesting…" : refundSuccess ? "Refund requested" : "Request refund"}
+                      </button>
+                      {refundError && <p className="text-sm text-red-600 dark:text-red-400 mt-2">{refundError}</p>}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -535,7 +633,12 @@ export default function TripSummaryPage() {
                     {reviews.map((r) => (
                       <div key={r.id} className="border border-slate-200 dark:border-slate-600 rounded-lg p-3">
                         <div className="flex items-center justify-between gap-2">
-                          <StarDisplay rating={r.rating} />
+                          <div className="flex items-center gap-2">
+                            <StarDisplay rating={r.rating} />
+                            {r.verified && (
+                              <span className="text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-200">Verified</span>
+                            )}
+                          </div>
                           <span className="text-xs text-slate-500">
                             {r.reviewerEmail ? r.reviewerEmail.replace(/(.{2}).*(@.*)/, "$1***$2") : "Anonymous"} · {r.createdAt ? new Date(r.createdAt).toLocaleDateString() : ""}
                           </span>

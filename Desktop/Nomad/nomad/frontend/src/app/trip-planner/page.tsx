@@ -1,9 +1,9 @@
 "use client";
 
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 const LocationPicker = dynamic(() => import("@/components/LocationPicker"), { ssr: false });
 
 import ProtectedPage from "@/components/ProtectedPage";
@@ -230,153 +230,156 @@ export default function TripPlannerPage() {
     }
   };
 
+  const interestMatch = `${form.interest} Only`;
+  const displayedPlans = exploreAllPlans ? planOptions : planOptions.filter((p: any) => p.type === interestMatch);
+
+  const Wrapper = ProtectedPage;
   return (
-    <ProtectedPage>
-      <div className="section py-12">
-        <div className="card p-8 space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Trip Planner</h2>
-          <p className="text-slate-600 dark:text-slate-400 mt-1">Create a weekend trip from prefixed plans or pick your own places for an optimized route.</p>
+    <Wrapper>
+      <div className="section py-8 space-y-6">
+        <nav className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+          <Link href="/">Home</Link>
+          <span>/</span>
+          <span className="text-slate-900 dark:text-white font-medium">Trip Planner</span>
+        </nav>
+
+        <div className="max-w-4xl">
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Trip Planner</h1>
+          <p className="text-slate-600 dark:text-slate-400 mt-1">
+            Get AI-curated plans for your interests or build your own trip from places — we optimize the route for you.
+          </p>
+
+          {/* Mode tabs */}
+          <div className="mt-6 flex rounded-xl bg-slate-100 dark:bg-slate-800/60 p-1 w-fit">
+            <button
+              type="button"
+              onClick={() => { setMode("preview"); setError(null); setShowPlans(false); setAllPlaces([]); setSelectedPlaceIds([]); }}
+              className={`rounded-lg px-5 py-2.5 text-sm font-semibold transition ${
+                mode === "preview"
+                  ? "bg-white dark:bg-slate-700 text-emerald-700 dark:text-emerald-300 shadow-sm"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              Curated plans
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMode("custom"); setError(null); setShowPlans(false); setPlanOptions([]); }}
+              className={`rounded-lg px-5 py-2.5 text-sm font-semibold transition ${
+                mode === "custom"
+                  ? "bg-white dark:bg-slate-700 text-emerald-700 dark:text-emerald-300 shadow-sm"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              Build my trip
+            </button>
+          </div>
         </div>
 
-        {/* Mode: Preview Plans vs Create my trip */}
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => { setMode("preview"); setError(null); setShowPlans(false); setAllPlaces([]); setSelectedPlaceIds([]); }}
-            className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
-              mode === "preview" ? "bg-emerald-600 text-white" : "bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600"
-            }`}
-          >
-            Preview Plans
-          </button>
-          <button
-            type="button"
-            onClick={() => { setMode("custom"); setError(null); setShowPlans(false); setPlanOptions([]); }}
-            className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
-              mode === "custom" ? "bg-emerald-600 text-white" : "bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600"
-            }`}
-          >
-            Create my trip
-          </button>
-        </div>
+        {error && (
+          <div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-700 dark:text-red-300">
+            {error}
+          </div>
+        )}
+        {result && (
+          <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300 font-medium">
+            {result}
+          </div>
+        )}
 
         {mode === "preview" && (
         <>
-        <div className="grid md:grid-cols-2 gap-4">
-                    <label className="space-y-2">
-                      <span className="text-sm font-semibold">Travel Date <span className="text-red-500">*</span></span>
-                      <input
-                        type="date"
-                        name="travelDate"
-                        value={form.travelDate}
-                        onChange={handleChange}
-                        className="w-full border rounded-xl px-4 py-2"
-                        min={new Date().toISOString().split('T')[0]}
-                        required
-                      />
-                    </label>
-          {/* User ID is now hidden and auto-filled */}
-          <label className="space-y-2">
-            <span className="text-sm font-semibold">City</span>
-            <input
-              name="city"
-              value={form.city}
-              onChange={handleChange}
-              className="w-full border rounded-xl px-4 py-2"
-              disabled={cityLocked}
-            />
-            {cityLocked && (
-              <p className="text-xs text-slate-500">City is locked to user profile</p>
-            )}
-          </label>
-          <label className="space-y-2">
-            <span className="text-sm font-semibold">Weekend Type</span>
-            <select name="weekendType" value={form.weekendType} onChange={handleChange} className="w-full border rounded-xl px-4 py-2">
-              <option value="ONE_DAY">One Day</option>
-              <option value="TWO_DAY">Two Day</option>
-            </select>
-          </label>
-          <label className="space-y-2">
-            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Interest</span>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Plans will match this interest. Use &quot;Explore all plans&quot; below to see every type.
-            </p>
-            <select name="interest" value={form.interest} onChange={handleChange} className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-2 bg-transparent">
-              {[
-                "FOOD",
-                "CULTURE",
-                "NATURE",
-                "ADVENTURE",
-                "SHOPPING",
-                "NIGHTLIFE",
-                "RELAXATION",
-              ].map((interest) => (
-                <option key={interest} value={interest}>
-                  {interest}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="space-y-2">
-            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Travel Mode</span>
-            <select name="travelMode" value={form.travelMode} onChange={handleChange} className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-2 bg-transparent">
-              <option value="SOLO">Solo</option>
-              <option value="GROUP">Group</option>
-            </select>
-            {form.travelMode === "GROUP" && (
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                You&apos;ll be matched with a group for this trip. After creating the trip, you can see who your groupmates are on the trip summary.
-              </p>
-            )}
-          </label>
-          <div className="space-y-2 col-span-2">
-            <span className="text-sm font-semibold">Location (select on map)</span>
-            <div style={{ height: 320 }}>
-              <LocationPicker
-                lat={Number(form.userLatitude) || 20.5937}
-                lng={Number(form.userLongitude) || 78.9629}
-                setLat={(lat: number) => setForm((prev) => ({ ...prev, userLatitude: lat.toString() }))}
-                setLng={(lng: number) => setForm((prev) => ({ ...prev, userLongitude: lng.toString() }))}
+        <div className="card p-6 space-y-6">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-700 pb-2">Trip details</h2>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <label className="space-y-1.5">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Travel date <span className="text-red-500">*</span></span>
+              <input
+                type="date"
+                name="travelDate"
+                value={form.travelDate}
+                onChange={handleChange}
+                className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-2.5 bg-transparent focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                min={new Date().toISOString().split("T")[0]}
+                required
               />
-            </div>
-            <div className="flex gap-4 text-xs text-slate-600 mt-1">
-              <span>Latitude: {form.userLatitude}</span>
-              <span>Longitude: {form.userLongitude}</span>
-            </div>
+            </label>
+            <label className="space-y-1.5">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">City</span>
+              <input
+                name="city"
+                value={form.city}
+                onChange={handleChange}
+                placeholder="e.g. Bengaluru"
+                className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-2.5 bg-transparent focus:ring-2 focus:ring-emerald-500 focus:border-transparent disabled:opacity-60"
+                disabled={cityLocked}
+              />
+              {cityLocked && <p className="text-xs text-slate-500">From your profile</p>}
+            </label>
+            <label className="space-y-1.5">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Duration</span>
+              <select name="weekendType" value={form.weekendType} onChange={handleChange} className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-2.5 bg-transparent focus:ring-2 focus:ring-emerald-500">
+                <option value="ONE_DAY">One day</option>
+                <option value="TWO_DAY">Two days</option>
+              </select>
+            </label>
           </div>
-          <label className="flex items-center gap-3">
-            <input type="checkbox" name="pickupRequired" checked={form.pickupRequired} onChange={handleChange} />
-            <span className="text-sm font-semibold">Pickup Assistance</span>
+
+          <div className="grid sm:grid-cols-2 gap-4">
+            <label className="space-y-1.5">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Interest</span>
+              <select name="interest" value={form.interest} onChange={handleChange} className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-2.5 bg-transparent focus:ring-2 focus:ring-emerald-500">
+                {["FOOD", "CULTURE", "NATURE", "ADVENTURE", "SHOPPING", "NIGHTLIFE", "RELAXATION"].map((i) => (
+                  <option key={i} value={i}>{i}</option>
+                ))}
+              </select>
+              <p className="text-xs text-slate-500">Plans will match this. Toggle &quot;Explore all plans&quot; after preview to see other types.</p>
+            </label>
+            <label className="space-y-1.5">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Travel mode</span>
+              <select name="travelMode" value={form.travelMode} onChange={handleChange} className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-2.5 bg-transparent focus:ring-2 focus:ring-emerald-500">
+                <option value="SOLO">Solo</option>
+                <option value="GROUP">Group</option>
+              </select>
+              {form.travelMode === "GROUP" && (
+                <p className="text-xs text-slate-500">You&apos;ll be matched with a group; see groupmates on the trip summary.</p>
+              )}
+            </label>
+          </div>
+
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" name="pickupRequired" checked={form.pickupRequired} onChange={handleChange} className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">I need pickup assistance</span>
           </label>
         </div>
 
-        <div className="flex gap-3">
-          <button 
-            className="btn-primary" 
-            onClick={handlePreviewPlans} 
+        <div className="card p-6">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-700 pb-2 mb-4">Your location</h2>
+          <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">Pick a point on the map — we use it for distance and route.</p>
+          <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40" style={{ height: 320 }}>
+            <LocationPicker
+              lat={Number(form.userLatitude) || 20.5937}
+              lng={Number(form.userLongitude) || 78.9629}
+              setLat={(lat: number) => setForm((prev) => ({ ...prev, userLatitude: lat.toString() }))}
+              setLng={(lng: number) => setForm((prev) => ({ ...prev, userLongitude: lng.toString() }))}
+            />
+          </div>
+          <p className="text-xs text-slate-500 mt-2">Lat: {form.userLatitude || "—"} · Long: {form.userLongitude || "—"}</p>
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={handlePreviewPlans}
             disabled={loadingPlans || loadingTrip}
           >
-            {loadingPlans ? "Loading Plans..." : "Preview Plans"}
+            {loadingPlans ? "Loading plans…" : "Preview plans"}
           </button>
-          {showPlans && selectedPlanType && (
-            <button 
-              className="btn-primary" 
-              onClick={handleCreateTrip} 
-              disabled={loadingTrip}
-            >
-              {loadingTrip ? "Creating Trip..." : "Create Trip"}
-            </button>
-          )}
         </div>
         
         {/* Show plan options after preview — by default only plans matching interest; "Explore all plans" shows every type */}
-        {showPlans && planOptions.length > 0 && (() => {
-          const interestMatch = `${form.interest} Only`;
-          const displayedPlans = exploreAllPlans
-            ? planOptions
-            : planOptions.filter((p: any) => p.type === interestMatch);
-          return (
+        {showPlans && planOptions.length > 0 && (
           <div className="mt-6 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
@@ -401,113 +404,82 @@ export default function TripPlannerPage() {
               {displayedPlans.map((plan: any, idx: number) => (
                 <div 
                   key={idx} 
-                  className={`card p-4 border cursor-pointer transition-all ${
+                  className={`rounded-xl border-2 p-4 cursor-pointer transition-all ${
                     selectedPlanType === plan.type 
-                      ? 'border-brand-600 bg-brand-50 shadow-md' 
-                      : 'border-slate-200 hover:border-brand-300'
+                      ? "border-emerald-500 bg-emerald-50/80 dark:bg-emerald-900/20 shadow-md ring-2 ring-emerald-500/30" 
+                      : "border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/60 hover:border-emerald-300 dark:hover:border-emerald-600"
                   }`}
                   onClick={() => setSelectedPlanType(plan.type)}
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <span className="font-bold text-brand-700">{plan.type}</span>
+                    <span className="font-bold text-slate-900 dark:text-white">{plan.type}</span>
                     {selectedPlanType === plan.type && (
-                      <span className="badge bg-brand-600 text-white">Selected</span>
+                      <span className="rounded-full bg-emerald-600 px-2.5 py-0.5 text-xs font-semibold text-white">Selected</span>
                     )}
                   </div>
-                  <div className="space-y-2">
-                    <p className="text-xs text-slate-500 mb-2">
-                      {plan.places?.length || 0} places • {plan.places?.[0]?.dayNumber === plan.places?.[plan.places.length - 1]?.dayNumber ? '1 day' : '2 days'}
-                    </p>
-                    <ul className="space-y-1 text-sm">
-                      {plan.places?.slice(0, 3).map((place: any, i: number) => (
-                        <li key={i} className="flex items-center gap-2">
-                          <span className="font-semibold text-xs">Day {place.dayNumber}:</span>
-                          <span>{place.placeName}</span>
-                          {place.latitude && place.longitude && (
-                            <span className="text-xs text-slate-400">
-                              ({place.latitude.toFixed(2)}, {place.longitude.toFixed(2)})
-                            </span>
-                          )}
-                        </li>
-                      ))}
-                      {plan.places?.length > 3 && (
-                        <li className="text-xs text-slate-500">+ {plan.places.length - 3} more places</li>
-                      )}
-                    </ul>
-                    {plan.places && plan.places.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-slate-200">
-                        <p className="text-xs font-semibold text-slate-700">Place Details:</p>
-                        <div className="text-xs text-slate-600 space-y-1 mt-1">
-                          {plan.places.slice(0, 2).map((place: any, i: number) => (
-                            <div key={i}>
-                              <strong>{place.placeName}</strong> - {place.city} 
-                              {place.category && ` (${place.category})`}
-                              {place.rating && ` ⭐ ${place.rating}`}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+                    {plan.places?.length || 0} places • {plan.places?.[0]?.dayNumber === plan.places?.[plan.places.length - 1]?.dayNumber ? "1 day" : "2 days"}
+                  </p>
+                  <ul className="space-y-1.5 text-sm text-slate-700 dark:text-slate-300">
+                    {plan.places?.slice(0, 4).map((place: any, i: number) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <span className="shrink-0 font-medium text-emerald-600 dark:text-emerald-400 text-xs">Day {place.dayNumber}</span>
+                        <span>{place.placeName}</span>
+                        {place.rating && <span className="text-amber-500 text-xs">⭐ {place.rating}</span>}
+                      </li>
+                    ))}
+                    {(plan.places?.length ?? 0) > 4 && (
+                      <li className="text-xs text-slate-500">+ {(plan.places?.length ?? 0) - 4} more</li>
                     )}
-                  </div>
+                  </ul>
                 </div>
               ))}
             </div>
             )}
             
-            {/* Show details for selected plan */}
-            {selectedPlanType && (
-              <div className="mt-6 card p-4 bg-slate-50">
-                <h4 className="font-semibold mb-3">Selected Plan: {selectedPlanType}</h4>
-                {planOptions.find((p: any) => p.type === selectedPlanType) && (
-                  <>
-                    <ol className="list-decimal ml-6 space-y-2">
-                      {planOptions.find((p: any) => p.type === selectedPlanType)?.places.map((place: any, i: number) => (
-                        <li key={i} className="text-sm">
-                          <span className="font-semibold">Day {place.dayNumber}:</span> {place.placeName}
-                          <span className="text-xs text-slate-500 ml-2">
-                            ({place.startTime} - {place.endTime})
-                          </span>
-                          {place.latitude && place.longitude && (
-                            <span className="text-xs text-slate-400 ml-2">
-                              📍 {place.latitude.toFixed(4)}, {place.longitude.toFixed(4)}
-                            </span>
-                          )}
-                          {place.city && (
-                            <span className="text-xs text-slate-500 ml-2">📍 {place.city}</span>
-                          )}
-                          {place.rating && (
-                            <span className="text-xs text-slate-500 ml-2">⭐ {place.rating}</span>
-                          )}
-                        </li>
-                      ))}
-                    </ol>
-                    <button
-                      className="btn-primary mt-4"
-                      onClick={handleCreateTrip}
-                      disabled={loadingTrip}
-                    >
-                      {loadingTrip ? "Creating Trip..." : "Confirm & Create Trip"}
-                    </button>
-                  </>
-                )}
+            {/* Selected plan summary — single CTA */}
+            {selectedPlanType && planOptions.find((p: any) => p.type === selectedPlanType) && (
+              <div className="mt-6 rounded-xl border-2 border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-900/20 p-5">
+                <h4 className="font-semibold text-slate-900 dark:text-white mb-1">Your plan: {selectedPlanType}</h4>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">Places in order; we&apos;ll optimize the route.</p>
+                <ol className="list-decimal ml-5 space-y-2 text-sm text-slate-700 dark:text-slate-300 mb-5">
+                  {planOptions.find((p: any) => p.type === selectedPlanType)?.places.map((place: any, i: number) => (
+                    <li key={i}>
+                      <span className="font-medium text-emerald-600 dark:text-emerald-400">Day {place.dayNumber}</span>
+                      {" — "}{place.placeName}
+                      {place.startTime && place.endTime && (
+                        <span className="text-slate-500 ml-1">({place.startTime}–{place.endTime})</span>
+                      )}
+                      {place.rating && <span className="text-amber-500 ml-1">⭐ {place.rating}</span>}
+                    </li>
+                  ))}
+                </ol>
+                <button
+                  type="button"
+                  className="btn-primary w-full sm:w-auto"
+                  onClick={handleCreateTrip}
+                  disabled={loadingTrip}
+                >
+                  {loadingTrip ? "Creating trip…" : "Confirm & create trip"}
+                </button>
               </div>
             )}
           </div>
-          );
-        })()}
+        )}
         
-        {/* Show created trip info (preview mode) */}
+        {/* Success state (preview mode) */}
         {trip && mode === "preview" && (
-          <div className="mt-6 card p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
-            <h4 className="font-semibold text-green-800 dark:text-green-200 mb-2">Trip Created Successfully!</h4>
-            <p className="text-sm text-green-700 dark:text-green-300 mb-3">
-              Trip ID: {trip.tripRequestId} • Status: {trip.status}
+          <div className="mt-6 rounded-xl border-2 border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 p-6 text-center">
+            <p className="text-emerald-600 dark:text-emerald-400 font-semibold mb-1">Trip created successfully</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+              Trip #{trip.tripRequestId} · {trip.status}
             </p>
             <button
+              type="button"
               className="btn-primary"
               onClick={() => router.push(`/trip-summary/${trip.tripRequestId}`)}
             >
-              View Trip Summary
+              View trip summary
             </button>
           </div>
         )}
@@ -516,32 +488,37 @@ export default function TripPlannerPage() {
 
         {mode === "custom" && (
           <div className="space-y-6">
-            <div className="grid md:grid-cols-2 gap-4">
-              <label className="space-y-2">
-                <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Travel Date <span className="text-red-500">*</span></span>
-                <input
-                  type="date"
-                  name="travelDate"
-                  value={form.travelDate}
-                  onChange={handleChange}
-                  className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-2 bg-transparent"
-                  min={new Date().toISOString().split("T")[0]}
-                />
-              </label>
-              <label className="space-y-2">
-                <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">City</span>
-                <input
-                  name="city"
-                  value={form.city}
-                  onChange={handleChange}
-                  className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-2 bg-transparent"
-                  placeholder="e.g. Bengaluru"
-                />
-              </label>
+            <div className="card p-6">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-700 pb-2 mb-4">When & where</h2>
+              <div className="grid md:grid-cols-2 gap-4">
+                <label className="space-y-1.5">
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Travel date <span className="text-red-500">*</span></span>
+                  <input
+                    type="date"
+                    name="travelDate"
+                    value={form.travelDate}
+                    onChange={handleChange}
+                    className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-2.5 bg-transparent focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    min={new Date().toISOString().split("T")[0]}
+                  />
+                </label>
+                <label className="space-y-1.5">
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">City</span>
+                  <input
+                    name="city"
+                    value={form.city}
+                    onChange={handleChange}
+                    placeholder="e.g. Bengaluru"
+                    className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-2.5 bg-transparent focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  />
+                </label>
+              </div>
             </div>
-            <div className="space-y-2">
-              <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Your location (for distance & route)</span>
-              <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/40 w-full" style={{ height: 300, minHeight: 300 }}>
+
+            <div className="card p-6">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-700 pb-2 mb-3">Your location</h2>
+              <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">We use this for distance and route optimization.</p>
+              <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40" style={{ height: 300 }}>
                 <LocationPicker
                   lat={Number(form.userLatitude) || 12.9716}
                   lng={Number(form.userLongitude) || 77.5946}
@@ -550,21 +527,25 @@ export default function TripPlannerPage() {
                 />
               </div>
             </div>
-            <div className="pt-2">
+
+            <div className="flex flex-wrap items-center gap-3">
               <button
                 type="button"
                 className="btn-primary"
                 onClick={handleGetPlaces}
-                disabled={loadingPlaces}
+                disabled={loadingPlaces || !form.city?.trim()}
               >
-                {loadingPlaces ? "Loading places…" : "Get places"}
+                {loadingPlaces ? "Loading places…" : "Get places in this city"}
               </button>
+              {!form.city?.trim() && (
+                <span className="text-sm text-slate-500">Enter a city above first.</span>
+              )}
             </div>
 
             {allPlaces.length > 0 && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">All places — add to your plan</h3>
-                <div className="grid sm:grid-cols-2 gap-3 max-h-80 overflow-y-auto">
+              <div className="card p-6">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-700 pb-2 mb-4">Places — add to your plan</h3>
+                <div className="grid sm:grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-1">
                   {allPlaces.map((place) => (
                     <div
                       key={place.id}
@@ -605,16 +586,16 @@ export default function TripPlannerPage() {
             )}
 
             {selectedPlaceIds.length > 0 && (
-              <div className="card p-4 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-xl space-y-3">
-                <h3 className="font-semibold text-slate-900 dark:text-white">
-                  My plan ({selectedPlaceIds.length} place{selectedPlaceIds.length !== 1 ? "s" : ""})
+              <div className="rounded-xl border-2 border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-900/20 p-5">
+                <h3 className="font-semibold text-slate-900 dark:text-white mb-1">
+                  My plan — {selectedPlaceIds.length} place{selectedPlaceIds.length !== 1 ? "s" : ""} selected
                 </h3>
-                <p className="text-sm text-slate-600 dark:text-slate-400">
-                  We&apos;ll optimize the route for these places. Estimated cost will be shown after creation.
+                <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                  We&apos;ll optimize the route. Set a travel date above, then create your trip.
                 </p>
                 <button
                   type="button"
-                  className="btn-primary"
+                  className="btn-primary w-full sm:w-auto"
                   onClick={handleCreateFromPlaces}
                   disabled={loadingCreateFromPlaces || !form.travelDate}
                 >
@@ -624,11 +605,8 @@ export default function TripPlannerPage() {
             )}
           </div>
         )}
-
-        {result && <p className="text-sm text-green-600 dark:text-green-400 font-semibold">{result}</p>}
-        {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
         </div>
       </div>
-    </ProtectedPage>
+    </Wrapper>
   );
 }

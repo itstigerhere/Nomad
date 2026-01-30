@@ -20,4 +20,7 @@ public class PaymentCreateRequest {
     @NotNull
     @DecimalMin("1.0")
     private BigDecimal amount;
+
+    /** Optional promo code (e.g. WELCOME10). */
+    private String promoCode;
 }

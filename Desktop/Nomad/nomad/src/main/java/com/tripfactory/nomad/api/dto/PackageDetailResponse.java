@@ -19,5 +19,5 @@ public class PackageDetailResponse {
     private List<PlaceResponse> places;
     private List<String> activities;
     private Double averageRating;
-    // package-level reviews can be added later
+    private Boolean sponsored;
 }

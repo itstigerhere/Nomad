@@ -2,19 +2,28 @@
 
 import ProtectedPage from "@/components/ProtectedPage";
 import {
+    activatePro,
+    addSponsored,
     createPlace,
     createVehicle,
     deletePlace,
     deleteVehicle,
+    getDashboard,
     listPlaces,
     listVehicles,
+    removeSponsored,
+    type AdminDashboardResponse,
 } from "@/lib/adminApi";
 import { useEffect, useState } from "react";
 
 export default function AdminPage() {
+  const [dashboard, setDashboard] = useState<AdminDashboardResponse | null>(null);
   const [places, setPlaces] = useState<any[]>([]);
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [sponsoredPackageId, setSponsoredPackageId] = useState("");
+  const [proForm, setProForm] = useState({ userId: "", plan: "MONTHLY" as "MONTHLY" | "YEARLY", validUntil: "" });
+  const [proSuccess, setProSuccess] = useState<string | null>(null);
 
   const [placeForm, setPlaceForm] = useState({
     name: "",
@@ -39,7 +48,12 @@ export default function AdminPage() {
   const loadData = async () => {
     setError(null);
     try {
-      const [placesData, vehiclesData] = await Promise.all([listPlaces(), listVehicles()]);
+      const [dashboardData, placesData, vehiclesData] = await Promise.all([
+        getDashboard(),
+        listPlaces(),
+        listVehicles(),
+      ]);
+      setDashboard(dashboardData);
       setPlaces(placesData);
       setVehicles(vehiclesData);
     } catch (err) {
@@ -97,12 +111,128 @@ export default function AdminPage() {
     }
   };
 
+  const handleAddSponsored = async () => {
+    const id = Number(sponsoredPackageId);
+    if (!id) return;
+    setError(null);
+    try {
+      await addSponsored(id);
+      setSponsoredPackageId("");
+    } catch (err) {
+      setError("Failed to add sponsored package");
+    }
+  };
+
+  const handleActivatePro = async () => {
+    if (!proForm.userId || !proForm.validUntil) return;
+    setError(null);
+    setProSuccess(null);
+    try {
+      const validUntil = new Date(proForm.validUntil);
+      if (isNaN(validUntil.getTime())) {
+        setError("Invalid date for Pro valid until");
+        return;
+      }
+      await activatePro({
+        userId: Number(proForm.userId),
+        plan: proForm.plan,
+        validUntil: validUntil.toISOString(),
+      });
+      setProSuccess("Pro activated successfully");
+      setProForm({ userId: "", plan: "MONTHLY", validUntil: "" });
+    } catch (err) {
+      setError("Failed to activate Pro");
+    }
+  };
+
   return (
     <ProtectedPage requiredRole="ADMIN">
       <div className="section py-12 space-y-8">
         <div>
           <h2 className="text-2xl font-bold">Admin Console</h2>
-          <p className="text-slate-600">Manage Places and Vehicles (admin role required).</p>
+          <p className="text-slate-600">Manage Places, Vehicles, Dashboard, Sponsored packages and Pro.</p>
+        </div>
+
+        {dashboard && (
+          <div className="card p-6">
+            <h3 className="text-lg font-semibold mb-4">Dashboard</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="rounded-xl bg-slate-100 dark:bg-slate-800 p-4">
+                <p className="text-xs text-slate-500 uppercase">Users</p>
+                <p className="text-2xl font-bold">{dashboard.userCount}</p>
+              </div>
+              <div className="rounded-xl bg-slate-100 dark:bg-slate-800 p-4">
+                <p className="text-xs text-slate-500 uppercase">Trips</p>
+                <p className="text-2xl font-bold">{dashboard.tripCount}</p>
+              </div>
+              <div className="rounded-xl bg-slate-100 dark:bg-slate-800 p-4">
+                <p className="text-xs text-slate-500 uppercase">Places</p>
+                <p className="text-2xl font-bold">{dashboard.placeCount}</p>
+              </div>
+              <div className="rounded-xl bg-slate-100 dark:bg-slate-800 p-4">
+                <p className="text-xs text-slate-500 uppercase">Total commission (₹)</p>
+                <p className="text-2xl font-bold">{dashboard.totalCommission ?? 0}</p>
+              </div>
+            </div>
+            {dashboard.recentTrips?.length > 0 && (
+              <div className="mt-4">
+                <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-2">Recent trips</p>
+                <ul className="space-y-1 text-sm">
+                  {dashboard.recentTrips.slice(0, 5).map((t) => (
+                    <li key={t.tripRequestId}>#{t.tripRequestId} — {t.city} — {t.status} — {t.userEmail ?? ""}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="card p-6 space-y-4">
+          <h3 className="text-lg font-semibold">Sponsored package</h3>
+          <p className="text-sm text-slate-600">Add a package ID to show it as sponsored (first in list).</p>
+          <div className="flex flex-wrap gap-2">
+            <input
+              type="number"
+              value={sponsoredPackageId}
+              onChange={(e) => setSponsoredPackageId(e.target.value)}
+              placeholder="Package ID (e.g. 101)"
+              className="border rounded-xl px-4 py-2 w-40"
+            />
+            <button className="btn-primary" onClick={handleAddSponsored}>Add sponsored</button>
+          </div>
+          <p className="text-xs text-slate-500">To remove: use DELETE /api/admin/sponsored/{`{packageId}`} (e.g. via API client).</p>
+        </div>
+
+        <div className="card p-6 space-y-4">
+          <h3 className="text-lg font-semibold">Activate Pro</h3>
+          <div className="grid sm:grid-cols-3 gap-3">
+            <input
+              type="number"
+              value={proForm.userId}
+              onChange={(e) => setProForm((p) => ({ ...p, userId: e.target.value }))}
+              placeholder="User ID"
+              className="border rounded-xl px-4 py-2"
+            />
+            <select
+              value={proForm.plan}
+              onChange={(e) => setProForm((p) => ({ ...p, plan: e.target.value as "MONTHLY" | "YEARLY" }))}
+              className="border rounded-xl px-4 py-2"
+            >
+              <option value="MONTHLY">MONTHLY</option>
+              <option value="YEARLY">YEARLY</option>
+            </select>
+            <input
+              type="datetime-local"
+              value={proForm.validUntil}
+              onChange={(e) => setProForm((p) => ({ ...p, validUntil: e.target.value }))}
+              placeholder="Valid until"
+              className="border rounded-xl px-4 py-2"
+            />
+          </div>
+          <button className="btn-primary" onClick={handleActivatePro} disabled={!proForm.userId || !proForm.validUntil}>
+            Activate Pro
+          </button>
+          {proSuccess && <p className="text-sm text-emerald-600">{proSuccess}</p>}
         </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}

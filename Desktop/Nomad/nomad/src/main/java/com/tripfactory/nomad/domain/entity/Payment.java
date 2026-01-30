@@ -39,6 +39,14 @@ public class Payment {
     @Column(nullable = false)
     private BigDecimal amount;
 
+    /** Platform commission (e.g. 10% of amount) - revenue. */
+    @Column(name = "commission_amount", precision = 19, scale = 2)
+    private BigDecimal commissionAmount;
+
+    /** Convenience/booking fee charged to user (fixed + percent). */
+    @Column(name = "convenience_fee", precision = 19, scale = 2)
+    private BigDecimal convenienceFee;
+
     @Column(nullable = false, unique = true)
     private String razorpayOrderId;
 

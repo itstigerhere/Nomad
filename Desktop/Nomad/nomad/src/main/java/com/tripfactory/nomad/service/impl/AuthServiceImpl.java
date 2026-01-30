@@ -3,6 +3,7 @@ package com.tripfactory.nomad.service.impl;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -21,6 +22,7 @@ import com.tripfactory.nomad.repository.PasswordResetTokenRepository;
 import com.tripfactory.nomad.repository.UserRepository;
 import com.tripfactory.nomad.service.AuthService;
 import com.tripfactory.nomad.service.NotificationService;
+import com.tripfactory.nomad.service.ReferralService;
 import com.tripfactory.nomad.service.exception.BadRequestException;
 import com.tripfactory.nomad.service.exception.ResourceNotFoundException;
 import com.tripfactory.nomad.service.jwt.JwtService;
@@ -39,6 +41,7 @@ public class AuthServiceImpl implements AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final NotificationService notificationService;
+    private final ReferralService referralService;
 
     @Value("${nomad.frontend-url:http://localhost:3000}")
     private String frontendUrl;
@@ -62,8 +65,15 @@ public class AuthServiceImpl implements AuthService {
         user.setInterestType(request.getInterestType());
         user.setTravelPreference(request.getTravelPreference());
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        if (user.getReferralCode() == null || user.getReferralCode().isBlank()) {
+            user.setReferralCode(generateReferralCode());
+        }
 
         User saved = userRepository.save(user);
+        if (request.getReferralCode() != null && !request.getReferralCode().isBlank()) {
+            userRepository.findByReferralCode(request.getReferralCode().trim())
+                    .ifPresent(referrer -> referralService.recordReferral(referrer.getId(), saved.getId()));
+        }
         String token = jwtService.generateToken(saved.getEmail());
 
         AuthResponse response = new AuthResponse();
@@ -133,6 +143,15 @@ public class AuthServiceImpl implements AuthService {
         passwordResetTokenRepository.delete(resetToken);
     }
 
+    private static String generateReferralCode() {
+        String chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        StringBuilder sb = new StringBuilder("NOMAD");
+        for (int i = 0; i < 6; i++) {
+            sb.append(chars.charAt(ThreadLocalRandom.current().nextInt(chars.length())));
+        }
+        return sb.toString();
+    }
+
     private UserResponse toResponse(User user) {
         UserResponse response = new UserResponse();
         response.setId(user.getId());
@@ -147,6 +166,7 @@ public class AuthServiceImpl implements AuthService {
         response.setRole(user.getRole());
         response.setCreatedAt(user.getCreatedAt());
         response.setProfilePhotoUrl(user.getProfilePhotoUrl());
+        response.setReferralCode(user.getReferralCode());
         return response;
     }
 }

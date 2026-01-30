@@ -3,8 +3,8 @@
 import UseLocationButton from "@/components/UseLocationButton";
 import { login, register } from "@/lib/authApi";
 import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 
 const MapPicker = dynamic(() => import("@/components/MapPicker"), { ssr: false });
 
@@ -21,9 +21,16 @@ export default function AuthPage() {
     longitude: "",
     interestType: "CULTURE",
     travelPreference: "SOLO",
+    referralCode: "",
   });
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const ref = searchParams?.get("ref");
+    if (ref) setForm((prev) => ({ ...prev, referralCode: ref }));
+  }, [searchParams]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -44,6 +51,7 @@ export default function AuthPage() {
           longitude: Number(form.longitude),
           interestType: form.interestType,
           travelPreference: form.travelPreference,
+          referralCode: form.referralCode?.trim() || undefined,
         });
         localStorage.setItem("nomad_token", data.token);
         setToken(data.token);
@@ -101,6 +109,7 @@ export default function AuthPage() {
                 <option value="SOLO">SOLO</option>
                 <option value="GROUP">GROUP</option>
               </select>
+              <input name="referralCode" value={form.referralCode} onChange={handleChange} placeholder="Referral code (optional)" className="border rounded-xl px-4 py-2 col-span-2" />
             </>
           )}
         </div>

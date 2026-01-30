@@ -1,7 +1,9 @@
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
-const EnrollButton = dynamic(() => import("@/components/EnrollButton"), { ssr: false });
+const PackageEnrollSection = dynamic(() => import("@/components/PackageEnrollSection"), { ssr: false });
+const TrackPackageView = dynamic(() => import("@/components/TrackPackageView"), { ssr: false });
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
 
@@ -18,9 +20,22 @@ export default async function PackageDetailPage({ params }: { params: { id: stri
 
   return (
     <div className="section py-12">
+      <TrackPackageView packageId={pkg.id} />
+      <nav className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 mb-4">
+        <Link href="/">Home</Link>
+        <span>/</span>
+        <Link href="/packages">Packages</Link>
+        <span>/</span>
+        <span className="text-slate-900 dark:text-white">{pkg.name}</span>
+      </nav>
       <div className="grid md:grid-cols-3 gap-6">
         <div className="col-span-2">
-          <h1 className="text-3xl font-bold">{pkg.name}</h1>
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <h1 className="text-3xl font-bold">{pkg.name}</h1>
+            {pkg.sponsored && (
+              <span className="text-xs font-semibold px-2 py-1 rounded bg-amber-500 text-white">Sponsored</span>
+            )}
+          </div>
           <p className="text-slate-600 mt-2">{pkg.description}</p>
           <div className="mt-6 space-y-4">
             <h3 className="text-xl font-semibold">Places in this package</h3>
@@ -38,16 +53,21 @@ export default async function PackageDetailPage({ params }: { params: { id: stri
           </div>
         </div>
         <aside className="space-y-4">
-          <div className="card p-4">
-            <div className="text-2xl font-bold">₹{pkg.price}</div>
-            {/* EnrollButton will POST to enroll and redirect to payment */}
-            <div className="mt-4">
-              <EnrollButton packageId={pkg.id} amount={pkg.price} />
-            </div>
-          </div>
+          <PackageEnrollSection packageId={pkg.id} price={pkg.price} />
           <div className="card p-4">
             <h4 className="font-semibold">Average Rating</h4>
-            <div className="text-xl">{pkg.averageRating?.toFixed(1) ?? 'N/A'}</div>
+            <div className="text-xl">{pkg.averageRating?.toFixed(1) ?? "N/A"}</div>
+          </div>
+          <div className="card p-4">
+            <h4 className="font-semibold mb-2">What to pack</h4>
+            <ul className="text-sm text-slate-600 dark:text-slate-400 space-y-1">
+              <li>• Valid ID</li>
+              <li>• Comfortable shoes</li>
+              <li>• Sun protection (hat, sunscreen)</li>
+              <li>• Water bottle</li>
+              <li>• Camera / phone</li>
+              <li>• Cash / cards for local buys</li>
+            </ul>
           </div>
         </aside>
       </div>

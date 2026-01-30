@@ -8,6 +8,7 @@ export const metadata: Metadata = {
   title: "NOMADS",
   description:
     "Plan weekend city trips with smart recommendations, assistance, and payments.",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({

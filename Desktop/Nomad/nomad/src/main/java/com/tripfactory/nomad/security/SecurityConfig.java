@@ -40,6 +40,7 @@ public class SecurityConfig {
                     "/api/places/**",
                     "/api/payment/webhook",
                     "/api/share/**",
+                    "/api/contact",
                     "/actuator/**",
                     "/"
                 ).permitAll()

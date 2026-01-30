@@ -41,4 +41,7 @@ public class AuthRegisterRequest {
 
     @NotNull
     private TravelPreference travelPreference;
+
+    /** Optional: referral code from another user's link. */
+    private String referralCode;
 }
