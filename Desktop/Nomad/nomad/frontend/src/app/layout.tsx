@@ -3,6 +3,8 @@ import "./globals.css";
 
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { TourCartProvider } from "@/context/TourCartContext";
+import TourCartButton from "@/components/TourCartButton";
 
 export const metadata: Metadata = {
   title: "NOMADS",
@@ -25,13 +27,14 @@ export default function RootLayout({
         />
       </head>
       <body className="bg-[var(--color-bg)] text-[var(--color-text)] antialiased min-h-screen">
-        <div className="min-h-screen flex flex-col">
-          <Header />
-          <main className="flex-1 pt-16 sm:pt-20">
-            {children}
-          </main>
-          <Footer />
-        </div>
+        <TourCartProvider>
+          <div className="min-h-screen flex flex-col">
+            <Header />
+            <main className="flex-1 pt-16 sm:pt-20">{children}</main>
+            <Footer />
+            <TourCartButton />
+          </div>
+        </TourCartProvider>
       </body>
     </html>
   );

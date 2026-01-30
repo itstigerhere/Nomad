@@ -56,6 +56,16 @@ export async function fetchTrip(tripId: number) {
   return data;
 }
 
+export async function deleteTrip(tripId: number) {
+  const { data } = await api.delete(`/api/trips/${tripId}`);
+  return data;
+}
+
+export async function fetchMyTrips() {
+  const { data } = await api.get('/api/trips/me');
+  return data;
+}
+
 /** PATCH /api/trips/{id}/cancel - cancel trip (REQUESTED or PAYMENT_PENDING only) */
 export async function cancelTrip(tripId: number) {
   const { data } = await api.patch(`/api/trips/${tripId}/cancel`);

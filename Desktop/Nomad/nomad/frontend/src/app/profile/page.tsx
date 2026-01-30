@@ -1,27 +1,15 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import ProtectedPage from "@/components/ProtectedPage";
-import { fetchMe, fetchMeFresh } from "@/lib/authApi";
+import { fetchMe } from "@/lib/authApi";
 import { updateUser, uploadProfilePhoto } from "@/lib/profileApi";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
-const API_BASE = typeof process !== "undefined" ? (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080") : "";
-const MAX_IMAGE_SIZE_MB = 5;
-
-function profilePhotoSrc(url: string | null): string {
-  if (!url) return "";
-  if (url.startsWith("/api")) return API_BASE + url;
-  return url;
-}
-
-function getInitials(name: string): string {
-  if (!name?.trim()) return "?";
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  return name.slice(0, 2).toUpperCase();
-}
+const CITY_OPTIONS = [
+  { value: "Bengaluru", label: "Bengaluru", emoji: "🏙️", lat: 12.9716, lng: 77.5946 },
+  { value: "Mumbai", label: "Mumbai", emoji: "🌆", lat: 19.0760, lng: 72.8777 },
+  { value: "Delhi", label: "Delhi", emoji: "🏛️", lat: 28.6139, lng: 77.2090 },
+];
 
 export default function ProfilePage() {
   const [form, setForm] = useState({
@@ -38,62 +26,30 @@ export default function ProfilePage() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
-  const [photoError, setPhotoError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const pathname = usePathname();
-
-  const loadProfile = useCallback(() => {
-    setLoading(true);
-    fetchMeFresh()
-      .then((data) => {
-        setForm({
-          id: String(data.id),
-          name: data.name ?? "",
-          phoneNumber: data.phoneNumber ?? "",
-          city: data.city ?? "",
-          latitude: String(data.latitude ?? ""),
-          longitude: String(data.longitude ?? ""),
-          interestType: data.interestType ?? "CULTURE",
-          travelPreference: data.travelPreference ?? "SOLO",
-        });
-        setPhotoPreview(data.profilePhotoUrl ?? null);
-      })
-      .catch(() => setStatus("Failed to load profile"))
-      .finally(() => setLoading(false));
+  useEffect(() => {
+    fetchMe().then((data) => {
+      setForm({
+        id: String(data.id),
+        name: data.name ?? "",
+        phoneNumber: data.phoneNumber ?? "",
+        city: data.city ?? "",
+        latitude: String(data.latitude ?? ""),
+        longitude: String(data.longitude ?? ""),
+        interestType: data.interestType ?? "CULTURE",
+        travelPreference: data.travelPreference ?? "SOLO",
+      });
+      if (data.profilePhotoUrl) {
+        setPhotoPreview(data.profilePhotoUrl);
+      }
+    }).catch(() => setStatus("Failed to load profile"));
   }, []);
-
-  useEffect(() => {
-    if (pathname !== "/profile") return;
-    loadProfile();
-  }, [pathname, loadProfile]);
-
-  useEffect(() => {
-    if (pathname !== "/profile") return;
-    const onFocus = () => loadProfile();
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
-  }, [pathname, loadProfile]);
-
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
-    setPhotoError(null);
     setPhotoFile(file);
     if (file) {
-      if (!file.type.startsWith("image/")) {
-        setPhotoError("Please choose an image (JPEG, PNG, etc.)");
-        setPhotoPreview((p) => p);
-        return;
-      }
-      if (file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
-        setPhotoError(`Image must be under ${MAX_IMAGE_SIZE_MB} MB`);
-        return;
-      }
       setPhotoPreview(URL.createObjectURL(file));
-    } else {
-      setPhotoPreview((prev) => prev);
     }
   };
 
@@ -101,18 +57,15 @@ export default function ProfilePage() {
     if (!photoFile) return;
     setPhotoUploading(true);
     setStatus(null);
-    setPhotoError(null);
     try {
       await uploadProfilePhoto(photoFile);
-      const data = await fetchMeFresh();
-      setPhotoPreview(data.profilePhotoUrl ?? null);
-      setPhotoFile(null);
-      setStatus("Photo uploaded successfully");
-    } catch (err: unknown) {
-      const msg = err && typeof err === "object" && "response" in err
-        ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
-        : null;
-      setPhotoError(msg || "Photo upload failed");
+      const data = await fetchMe();
+      if (data.profilePhotoUrl) {
+        setPhotoPreview(data.profilePhotoUrl);
+      }
+      setStatus("Photo uploaded");
+    } catch (err) {
+      setStatus("Photo upload failed");
     } finally {
       setPhotoUploading(false);
     }
@@ -120,20 +73,28 @@ export default function ProfilePage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
+    
+    // Auto-fill coordinates when city is selected
+    if (name === "city") {
+      const selectedCity = CITY_OPTIONS.find(c => c.value === value);
+      if (selectedCity) {
+        setForm((prev) => ({ 
+          ...prev, 
+          city: value,
+          latitude: String(selectedCity.lat),
+          longitude: String(selectedCity.lng),
+        }));
+        return;
+      }
+    }
+    
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSave = async () => {
     setStatus(null);
-    setPhotoError(null);
     setSaving(true);
     try {
-      if (photoFile) {
-        await uploadProfilePhoto(photoFile);
-        const data = await fetchMeFresh();
-        setPhotoPreview(data.profilePhotoUrl ?? null);
-        setPhotoFile(null);
-      }
       await updateUser(Number(form.id), {
         name: form.name,
         city: form.city,
@@ -143,244 +104,310 @@ export default function ProfilePage() {
         interestType: form.interestType,
         travelPreference: form.travelPreference,
       });
-      setStatus(photoFile ? "Profile and photo updated" : "Profile updated");
-    } catch (err: unknown) {
-      const msg = err && typeof err === "object" && "response" in err
-        ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
-        : null;
-      setStatus(msg || "Update failed");
+      
+      // Update localStorage so nearby places refresh with new location
+      try {
+        localStorage.setItem("nomad_location", JSON.stringify({
+          city: form.city,
+          latitude: Number(form.latitude),
+          longitude: Number(form.longitude),
+        }));
+      } catch (e) {
+        console.warn("Failed to update localStorage:", e);
+      }
+      
+      setStatus("✅ Profile updated successfully!");
+      setTimeout(() => setStatus(null), 3000);
+    } catch (err: any) {
+      console.error("Profile update error:", err);
+      setStatus(`❌ Update failed: ${err.response?.data?.message || err.message || "Unknown error"}`);
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) {
-    return (
-      <ProtectedPage>
-        <div className="section py-12">
-          <div className="card p-8 animate-pulse">
-            <div className="h-8 w-48 bg-slate-200 dark:bg-slate-700 rounded-lg mb-8" />
-            <div className="flex gap-6 mb-8">
-              <div className="w-32 h-32 rounded-full bg-slate-200 dark:bg-slate-700 shrink-0" />
-              <div className="flex-1 space-y-3">
-                <div className="h-4 w-full bg-slate-200 dark:bg-slate-700 rounded" />
-                <div className="h-10 w-24 bg-slate-200 dark:bg-slate-700 rounded-xl" />
-              </div>
-            </div>
-            <div className="grid md:grid-cols-2 gap-4">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className="h-11 bg-slate-200 dark:bg-slate-700 rounded-xl" />
-              ))}
-            </div>
-          </div>
-        </div>
-      </ProtectedPage>
-    );
-  }
-
   return (
     <ProtectedPage>
-      <div className="section py-8 space-y-8">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 text-sm font-medium">
-            ← Home
-          </Link>
-        </div>
-
+      <div className="section py-12 space-y-8">
         {/* Header */}
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white">
-              {form.name ? `Hi, ${form.name}` : "Profile"}
-            </h1>
-            <p className="text-slate-600 dark:text-slate-400 mt-1">Manage your account and trip preferences.</p>
-          </div>
+        <div className="text-center space-y-2 animate-slide-up">
+          <h1 className="text-4xl font-bold">Your Profile</h1>
+          <p className="text-lg opacity-70">Manage your travel preferences and personal information</p>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* Left: Photo card */}
-          <div className="lg:col-span-1">
-            <div className="card p-6 sticky top-24">
-              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide mb-4">
-                Profile photo
-              </h3>
-              <div
-                className="relative group cursor-pointer mx-auto w-40 h-40 rounded-full overflow-hidden border-2 border-slate-200 dark:border-slate-600 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0"
-                onClick={() => fileInputRef.current?.click()}
-                onKeyDown={(e) => e.key === "Enter" && fileInputRef.current?.click()}
-                role="button"
-                tabIndex={0}
-                aria-label="Change profile photo"
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  onChange={handlePhotoChange}
-                  className="sr-only"
-                />
-                {photoPreview ? (
-                  <img
-                    src={profilePhotoSrc(photoPreview)}
-                    alt="Profile"
-                    className="object-cover w-full h-full transition group-hover:scale-105"
-                  />
-                ) : (
-                  <span className="text-4xl font-bold text-slate-400 dark:text-slate-500">
-                    {getInitials(form.name)}
-                  </span>
+        <div className="max-w-4xl mx-auto">
+          {/* Profile Photo Card */}
+          <div className="card p-8 mb-6 animate-fade-in" style={{ animationDelay: "0.1s" }}>
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+              <span className="text-3xl">📸</span>
+              Profile Photo
+            </h2>
+            <div className="flex flex-col sm:flex-row items-center gap-6">
+              <div className="relative group">
+                <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-[var(--color-brand)] shadow-lg transition-transform group-hover:scale-105" 
+                     style={{ backgroundColor: "var(--color-bg-secondary)" }}>
+                  {photoPreview ? (
+                    <img
+                      src={photoPreview.startsWith('/api')
+                        ? (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080') + photoPreview
+                        : photoPreview}
+                      alt="Profile"
+                      className="object-cover w-full h-full"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <span className="text-6xl">👤</span>
+                    </div>
+                  )}
+                </div>
+                {photoFile && (
+                  <div className="absolute -bottom-2 -right-2 bg-[var(--color-brand)] text-white rounded-full w-8 h-8 flex items-center justify-center text-xs font-bold">
+                    NEW
+                  </div>
                 )}
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
-                  <span className="text-white text-sm font-medium">Change photo</span>
-                </div>
               </div>
-              <p className="text-center text-xs text-slate-500 dark:text-slate-400 mt-3">
-                Click to choose. JPEG, PNG or WebP, max {MAX_IMAGE_SIZE_MB} MB.
-              </p>
-              {photoFile && (
-                <div className="mt-4 flex flex-col gap-2">
-                  <p className="text-xs text-slate-600 dark:text-slate-400 truncate" title={photoFile.name}>
-                    {photoFile.name}
-                  </p>
-                  <button
-                    type="button"
-                    className="btn-primary w-full text-sm py-2"
-                    onClick={(e) => { e.stopPropagation(); handlePhotoUpload(); }}
-                    disabled={photoUploading}
-                  >
-                    {photoUploading ? "Uploading…" : "Upload photo"}
-                  </button>
-                </div>
-              )}
-              {photoError && <p className="text-sm text-red-600 dark:text-red-400 mt-2">{photoError}</p>}
+              <div className="flex-1 space-y-3 w-full">
+                <label className="block">
+                  <div className="border-2 border-dashed border-[var(--color-border)] rounded-xl p-4 text-center cursor-pointer hover:border-[var(--color-brand)] transition-colors">
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={handlePhotoChange} 
+                      className="hidden"
+                      id="photo-upload"
+                    />
+                    <label htmlFor="photo-upload" className="cursor-pointer">
+                      <div className="text-2xl mb-2">📁</div>
+                      <div className="text-sm opacity-70">Click to choose a photo</div>
+                      {photoFile && <div className="text-xs text-[var(--color-brand)] mt-1 font-semibold">{photoFile.name}</div>}
+                    </label>
+                  </div>
+                </label>
+                <button 
+                  className="btn-primary w-full group" 
+                  onClick={handlePhotoUpload} 
+                  disabled={!photoFile || photoUploading}
+                >
+                  {photoUploading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Uploading...
+                    </span>
+                  ) : (
+                    <span className="flex items-center justify-center gap-2">
+                      Upload Photo
+                      <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                      </svg>
+                    </span>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Right: Form */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="card p-6">
-              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide mb-4">
-                Personal details
-              </h3>
-              <div className="grid sm:grid-cols-2 gap-4">
-                <label className="block sm:col-span-2">
-                  <span className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Name</span>
-                  <input
-                    name="name"
-                    value={form.name}
-                    onChange={handleChange}
-                    placeholder="Your name"
-                    className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-2.5 bg-transparent focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
-                  />
+          {/* Personal Information Card */}
+          <div className="card p-8 animate-fade-in" style={{ animationDelay: "0.2s" }}>
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+              <span className="text-3xl">👤</span>
+              Personal Information
+            </h2>
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Name */}
+              <div className="space-y-2">
+                <label className="text-sm font-semibold opacity-70 flex items-center gap-2">
+                  <span>✏️</span> Full Name
                 </label>
-                <label className="block">
-                  <span className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Phone</span>
-                  <input
-                    name="phoneNumber"
-                    value={form.phoneNumber}
-                    onChange={handleChange}
-                    placeholder="+91 …"
-                    className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-2.5 bg-transparent focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
-                  />
+                <input 
+                  name="name" 
+                  value={form.name} 
+                  onChange={handleChange} 
+                  placeholder="Enter your name" 
+                  className="w-full border border-[var(--color-border)] rounded-xl px-4 py-3 bg-[var(--color-bg)] text-[var(--color-text)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20 transition-all outline-none"
+                />
+              </div>
+
+              {/* Phone */}
+              <div className="space-y-2">
+                <label className="text-sm font-semibold opacity-70 flex items-center gap-2">
+                  <span>📱</span> Phone Number
                 </label>
-                <label className="block">
-                  <span className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">City</span>
-                  <input
-                    name="city"
-                    value={form.city}
-                    onChange={handleChange}
-                    placeholder="City"
-                    className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-2.5 bg-transparent focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
-                  />
-                </label>
+                <input 
+                  name="phoneNumber" 
+                  value={form.phoneNumber} 
+                  onChange={handleChange} 
+                  placeholder="+91 XXXXX XXXXX" 
+                  className="w-full border border-[var(--color-border)] rounded-xl px-4 py-3 bg-[var(--color-bg)] text-[var(--color-text)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20 transition-all outline-none"
+                />
               </div>
             </div>
+          </div>
 
-            <div className="card p-6">
-              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide mb-4">
-                Location (for trip suggestions)
-              </h3>
-              <div className="grid sm:grid-cols-2 gap-4">
-                <label className="block">
-                  <span className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Latitude</span>
-                  <input
-                    name="latitude"
-                    value={form.latitude}
-                    onChange={handleChange}
-                    placeholder="e.g. 12.97"
-                    className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-2.5 bg-transparent focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
-                  />
+          {/* Location Card */}
+          <div className="card p-8 mt-6 animate-fade-in" style={{ animationDelay: "0.3s" }}>
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+              <span className="text-3xl">📍</span>
+              Location
+            </h2>
+            <div className="space-y-6">
+              {/* City Dropdown */}
+              <div className="space-y-2">
+                <label className="text-sm font-semibold opacity-70 flex items-center gap-2">
+                  <span>🏙️</span> City
                 </label>
-                <label className="block">
-                  <span className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Longitude</span>
-                  <input
-                    name="longitude"
-                    value={form.longitude}
-                    onChange={handleChange}
-                    placeholder="e.g. 77.59"
-                    className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-2.5 bg-transparent focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
-                  />
-                </label>
-              </div>
-            </div>
-
-            <div className="card p-6">
-              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide mb-4">
-                Trip preferences
-              </h3>
-              <div className="grid sm:grid-cols-2 gap-4">
-                <label className="block">
-                  <span className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Interest</span>
-                  <select
-                    name="interestType"
-                    value={form.interestType}
-                    onChange={handleChange}
-                    className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-2.5 bg-transparent focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
-                  >
-                    {["FOOD", "CULTURE", "NATURE", "ADVENTURE", "SHOPPING", "NIGHTLIFE", "RELAXATION"].map((item) => (
-                      <option key={item} value={item}>{item}</option>
-                    ))}
-                  </select>
-                </label>
-                <label className="block">
-                  <span className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Travel mode</span>
-                  <select
-                    name="travelPreference"
-                    value={form.travelPreference}
-                    onChange={handleChange}
-                    className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-2.5 bg-transparent focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
-                  >
-                    <option value="SOLO">Solo</option>
-                    <option value="GROUP">Group</option>
-                  </select>
-                </label>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-4">
-              <button
-                type="button"
-                className="btn-primary px-6 py-3"
-                onClick={handleSave}
-                disabled={saving}
-              >
-                {saving ? "Saving…" : "Save changes"}
-              </button>
-              {status && (
-                <span
-                  className={`text-sm font-medium ${
-                    status.startsWith("Profile") || status.startsWith("Photo")
-                      ? "text-emerald-600 dark:text-emerald-400"
-                      : "text-red-600 dark:text-red-400"
-                  }`}
+                <select 
+                  name="city" 
+                  value={form.city} 
+                  onChange={handleChange} 
+                  className="w-full border border-[var(--color-border)] rounded-xl px-4 py-3 bg-[var(--color-bg)] text-[var(--color-text)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20 transition-all outline-none cursor-pointer"
                 >
-                  {status}
+                  <option value="">Select your city</option>
+                  {CITY_OPTIONS.map((city) => (
+                    <option key={city.value} value={city.value}>
+                      {city.emoji} {city.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Coordinates - Read Only */}
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold opacity-70 flex items-center gap-2">
+                    <span>🌐</span> Latitude
+                  </label>
+                  <input 
+                    name="latitude" 
+                    value={form.latitude} 
+                    readOnly
+                    placeholder="Auto-filled" 
+                    className="w-full border border-[var(--color-border)] rounded-xl px-4 py-3 bg-[var(--color-bg-secondary)] text-[var(--color-text)] opacity-60 cursor-not-allowed"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold opacity-70 flex items-center gap-2">
+                    <span>🌐</span> Longitude
+                  </label>
+                  <input 
+                    name="longitude" 
+                    value={form.longitude} 
+                    readOnly
+                    placeholder="Auto-filled" 
+                    className="w-full border border-[var(--color-border)] rounded-xl px-4 py-3 bg-[var(--color-bg-secondary)] text-[var(--color-text)] opacity-60 cursor-not-allowed"
+                  />
+                </div>
+              </div>
+              <p className="text-xs opacity-60 flex items-center gap-2">
+                <span>ℹ️</span>
+                Coordinates are automatically set based on your selected city
+              </p>
+            </div>
+          </div>
+
+          {/* Travel Preferences Card */}
+          <div className="card p-8 mt-6 animate-fade-in" style={{ animationDelay: "0.4s" }}>
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+              <span className="text-3xl">✈️</span>
+              Travel Preferences
+            </h2>
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Interest Type */}
+              <div className="space-y-2">
+                <label className="text-sm font-semibold opacity-70 flex items-center gap-2">
+                  <span>❤️</span> Interest Type
+                </label>
+                <select 
+                  name="interestType" 
+                  value={form.interestType} 
+                  onChange={handleChange} 
+                  className="w-full border border-[var(--color-border)] rounded-xl px-4 py-3 bg-[var(--color-bg)] text-[var(--color-text)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20 transition-all outline-none cursor-pointer"
+                >
+                  {["FOOD", "CULTURE", "NATURE", "ADVENTURE", "SHOPPING", "NIGHTLIFE", "RELAXATION"].map((item) => {
+                    const icons: Record<string, string> = {
+                      FOOD: "🍽️",
+                      CULTURE: "🏛️",
+                      NATURE: "🌳",
+                      ADVENTURE: "🧗",
+                      SHOPPING: "🛍️",
+                      NIGHTLIFE: "🎉",
+                      RELAXATION: "🧘"
+                    };
+                    return (
+                      <option key={item} value={item}>
+                        {icons[item]} {item}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              {/* Travel Preference */}
+              <div className="space-y-2">
+                <label className="text-sm font-semibold opacity-70 flex items-center gap-2">
+                  <span>👥</span> Travel Style
+                </label>
+                <select 
+                  name="travelPreference" 
+                  value={form.travelPreference} 
+                  onChange={handleChange} 
+                  className="w-full border border-[var(--color-border)] rounded-xl px-4 py-3 bg-[var(--color-bg)] text-[var(--color-text)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20 transition-all outline-none cursor-pointer"
+                >
+                  <option value="SOLO">🧍 Solo Traveler</option>
+                  <option value="GROUP">👥 Group Travel</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Save Button and Status */}
+          <div className="mt-8 space-y-4 animate-fade-in" style={{ animationDelay: "0.5s" }}>
+            <button 
+              className="btn-primary w-full text-lg py-4 group relative overflow-hidden" 
+              onClick={handleSave}
+              disabled={saving}
+            >
+              {saving ? (
+                <span className="flex items-center justify-center gap-2">
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Saving Changes...
+                </span>
+              ) : (
+                <span className="relative z-10 flex items-center justify-center gap-2">
+                  💾 Save Profile
+                  <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
                 </span>
               )}
-            </div>
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+            </button>
+            
+            {status && (
+              <div className={`text-center p-4 rounded-xl animate-slide-up ${
+                status.includes('✅') 
+                  ? 'bg-green-100 text-green-800 border-2 border-green-300' 
+                  : 'bg-red-100 text-red-800 border-2 border-red-300'
+              }`}>
+                <p className="font-semibold">{status}</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
+
+      {/* CSS Animations */}
+      <style jsx>{`
+        @keyframes slide-up {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fade-in {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        .animate-slide-up { animation: slide-up 0.6s ease-out forwards; }
+        .animate-fade-in { animation: fade-in 0.6s ease-out forwards; opacity: 0; }
+      `}</style>
     </ProtectedPage>
   );
 }

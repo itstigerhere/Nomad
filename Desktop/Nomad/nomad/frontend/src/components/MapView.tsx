@@ -18,15 +18,49 @@ export default function MapView({ places = [], center, routeGeoJson, userLocatio
   const markerRefs = useRef<any[]>([]);
   const mapToken = useMemo(() => process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "", []);
   const [routeError, setRouteError] = useState<string | null>(null);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  // Detect theme changes
+  useEffect(() => {
+    const checkTheme = () => {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      setIsDarkMode(isDark);
+    };
+
+    checkTheme();
+    
+    // Watch for theme changes
+    const observer = new MutationObserver(checkTheme);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme']
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  // Update map style when theme changes
+  useEffect(() => {
+    if (mapInstance.current) {
+      const newStyle = isDarkMode 
+        ? "mapbox://styles/mapbox/dark-v11" 
+        : "mapbox://styles/mapbox/streets-v12";
+      mapInstance.current.setStyle(newStyle);
+    }
+  }, [isDarkMode]);
 
   useEffect(() => {
     if (!mapRef.current || !mapToken || mapInstance.current) return;
 
     mapboxgl.accessToken = mapToken;
 
+    const initialStyle = isDarkMode 
+      ? "mapbox://styles/mapbox/dark-v11" 
+      : "mapbox://styles/mapbox/streets-v12";
+
     const map = new mapboxgl.Map({
       container: mapRef.current,
-      style: "mapbox://styles/mapbox/streets-v12",
+      style: initialStyle,
       center: center ?? [77.5946, 12.9716],
       zoom: 10,
     });
@@ -48,10 +82,14 @@ export default function MapView({ places = [], center, routeGeoJson, userLocatio
     setRouteError(null);
 
     const bounds = new mapboxgl.LngLatBounds();
+    
+    // Use theme-aware colors for markers
+    const userMarkerColor = isDarkMode ? "#f87171" : "#ef4444";
+    const placeMarkerColor = isDarkMode ? "#60a5fa" : "#4f6cff";
 
     // Render user location marker if provided
     if (typeof userLocation?.latitude === "number" && typeof userLocation?.longitude === "number") {
-      const userMarker = new mapboxgl.Marker({ color: "#ef4444" }) // green
+      const userMarker = new mapboxgl.Marker({ color: userMarkerColor })
         .setLngLat([userLocation.longitude, userLocation.latitude])
         .setPopup(new mapboxgl.Popup().setHTML(`<strong>Your Start Location</strong>`))
         .addTo(mapInstance.current as any);
@@ -66,7 +104,7 @@ export default function MapView({ places = [], center, routeGeoJson, userLocatio
     }
 
     places.forEach((place) => {
-      const marker = new mapboxgl.Marker({ color: "#4f6cff" })
+      const marker = new mapboxgl.Marker({ color: placeMarkerColor })
         .setLngLat([place.longitude, place.latitude])
         .setPopup(new mapboxgl.Popup().setHTML(`<strong>${place.name}</strong>`))
         .addTo(mapInstance.current as any);
@@ -75,11 +113,15 @@ export default function MapView({ places = [], center, routeGeoJson, userLocatio
     });
 
     mapInstance.current.fitBounds(bounds, { padding: 60, maxZoom: 13 });
-  }, [places, userLocation]);
+  }, [places, userLocation, isDarkMode]);
 
   useEffect(() => {
     const map = mapInstance.current;
     if (!map || !mapToken) return;
+    
+    // Theme-aware route color
+    const routeColor = isDarkMode ? "#60a5fa" : "#4f6cff";
+    
     if (routeGeoJson) {
       try {
         const geometry = JSON.parse(routeGeoJson);
@@ -105,7 +147,7 @@ export default function MapView({ places = [], center, routeGeoJson, userLocatio
             "line-cap": "round",
           },
           paint: {
-            "line-color": "#4f6cff",
+            "line-color": routeColor,
             "line-width": 4,
           },
         });
@@ -172,7 +214,7 @@ export default function MapView({ places = [], center, routeGeoJson, userLocatio
               "line-cap": "round",
             },
             paint: {
-              "line-color": "#4f6cff",
+              "line-color": routeColor,
               "line-width": 4,
             },
           });
@@ -210,7 +252,7 @@ export default function MapView({ places = [], center, routeGeoJson, userLocatio
                   "line-cap": "round",
                 },
                 paint: {
-                  "line-color": "#4f6cff",
+                  "line-color": routeColor,
                   "line-width": 4,
                 },
               });
@@ -220,7 +262,7 @@ export default function MapView({ places = [], center, routeGeoJson, userLocatio
         }
       })
       .catch(() => setRouteError("Failed to load route"));
-  }, [places, mapToken, routeGeoJson]);
+  }, [places, mapToken, routeGeoJson, isDarkMode]);
 
   return (
     <div className="space-y-3">

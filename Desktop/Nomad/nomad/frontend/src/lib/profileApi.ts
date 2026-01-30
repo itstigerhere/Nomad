@@ -18,7 +18,7 @@ export async function updateUser(userId: number, payload: UpdateUserPayload) {
 export async function uploadProfilePhoto(file: File): Promise<string> {
   const formData = new FormData();
   formData.append('file', file);
-  const { data } = await api.post('/api/users/me/photo', formData, {
+  const { data} = await api.post('/api/users/me/photo', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
   return data;

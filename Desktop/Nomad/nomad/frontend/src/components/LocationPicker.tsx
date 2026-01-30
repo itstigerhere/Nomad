@@ -58,7 +58,7 @@ export default function LocationPicker({ lat, lng, setLat, setLng }: {
     <MapContainer
       center={[lat || 20.5937, lng || 78.9629]} // Default: India
       zoom={13}
-      style={{ height: "300px", width: "100%" }}
+      style={{ height: "300px", width: "100%", zIndex: 1, position: "relative" }}
       scrollWheelZoom={true}
     >
       <TileLayer
